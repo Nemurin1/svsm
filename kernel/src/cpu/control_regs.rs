@@ -133,9 +133,15 @@ pub fn read_cr0() -> CR0Flags {
     // SAFETY: The inline assembly just reads the processors CR0 register
     // and does not change any state.
     unsafe {
+        /*
+        对于cr0到cr4,arm没有与之对应的寄存器，只有实现了类似控制效果的寄存器，
+        但每个位以及实现的控制功能都不同，上面的CR0Flags等结构体也需要修改。
         asm!("mov %cr0, %rax",
-             out("rax") cr0,
-             options(att_syntax));
+             out("x0") cr0,
+             //options(att_syntax)
+             );
+        */
+        asm!("mrs {}, SCTLR_EL1", out(reg) cr0, options(nomem, nostack, preserves_flags));
     }
 
     CR0Flags::from_bits_truncate(cr0)
@@ -153,9 +159,13 @@ pub unsafe fn write_cr0(cr0: CR0Flags) {
     // defined by `struct CR0Flags`. The caller must ensure to not change any
     // execution-state relevant flags.
     unsafe {
+        /*
         asm!("mov %rax, %cr0",
-             in("rax") reg,
-             options(att_syntax));
+             in("x0") reg,
+             //options(att_syntax)
+             );
+        */
+        asm!("msr SCTLR_EL1, {}", in(reg) reg, options(nomem, nostack, preserves_flags));
     }
 }
 
@@ -166,9 +176,13 @@ pub fn read_cr2() -> usize {
     // SAFETY: The inline assembly just reads the processors CR2 register
     // and does not change any state.
     unsafe {
+        /*
         asm!("mov %cr2, %rax",
-             out("rax") ret,
-             options(att_syntax));
+             out("x0") ret,
+             //options(att_syntax)
+            );
+        */
+        asm!("mrs {}, FAR_EL1", out(reg) ret, options(nomem, nostack, preserves_flags));
     }
     ret
 }
@@ -180,9 +194,13 @@ pub fn read_cr3() -> PhysAddr {
     // SAFETY: The inline assembly just reads the processors CR3 register
     // and does not change any state.
     unsafe {
+        /*
         asm!("mov %cr3, %rax",
-             out("rax") ret,
-             options(att_syntax));
+             out("x0") ret,
+             //options(att_syntax)
+            );
+        */
+        asm!("mrs {}, TTBR0_EL1", out(reg) ret, options(nomem, nostack, preserves_flags));
     }
     PhysAddr::from(ret)
 }
@@ -195,10 +213,21 @@ pub fn read_cr3() -> PhysAddr {
 pub unsafe fn write_cr3(cr3: PhysAddr) {
     // SAFETY: The inline assembly set the processors CR3 register. The safety
     // of the CR3 value is delegated to the caller of this function which is unsafe.
+    let reg = cr3.bits();
     unsafe {
+        /*
         asm!("mov %rax, %cr3",
-             in("rax") cr3.bits(),
-             options(att_syntax));
+             in("x0") cr3.bits(),
+             //options(att_syntax)
+            );
+        */
+        asm!(
+            "msr TTBR0_EL1, {}",
+            "dsb ish",  // 数据同步屏障，保证写入生效
+            "isb",      // 指令同步屏障
+            in(reg) reg,
+            options(nomem, nostack, preserves_flags)
+        );
     }
 }
 
@@ -242,9 +271,13 @@ pub fn read_cr4() -> CR4Flags {
     // SAFETY: The inline assembly just reads the processors CR4 register
     // and does not change any state.
     unsafe {
+        /*
         asm!("mov %cr4, %rax",
-             out("rax") cr4,
-             options(att_syntax));
+             out("x0") cr4,
+             //options(att_syntax)
+            );
+        */
+        asm!("mrs {}, SCTLR_EL1", out(reg) cr4, options(nomem, nostack, preserves_flags));
     }
 
     CR4Flags::from_bits_truncate(cr4)
@@ -262,8 +295,12 @@ pub unsafe fn write_cr4(cr4: CR4Flags) {
     // defined by `struct CR4Flags`. The caller must ensure to not change any
     // execution-state relevant flags.
     unsafe {
+        /*
         asm!("mov %rax, %cr4",
-             in("rax") reg,
-             options(att_syntax));
+             in("x0") reg,
+             //options(att_syntax)
+            );
+        */
+        asm!("msr SCTLR_EL1, {}", in(reg) reg, options(nomem, nostack, preserves_flags));
     }
 }

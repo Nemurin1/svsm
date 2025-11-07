@@ -9,6 +9,7 @@ use crate::io::IOPort;
 use crate::locking::SpinLock;
 use crate::serial::{SerialPort, Terminal, DEFAULT_SERIAL_PORT};
 use crate::utils::immut_after_init::{ImmutAfterInitCell, ImmutAfterInitResult};
+use core::ptr;
 use core::fmt;
 use core::sync::atomic::{AtomicBool, Ordering};
 use release::COCONUT_VERSION;
@@ -27,8 +28,11 @@ impl fmt::Write for Console {
 
 impl Console {
     pub fn write_bytes(&self, buffer: &[u8]) {
-        for b in buffer.iter() {
-            self.writer.put_byte(*b);
+        for &b in buffer.iter() {
+            unsafe {
+                // 直接写 ARM UART MMIO 地址
+                ptr::write_volatile(0x0900_0000 as *mut u8, b);
+            }
         }
     }
 }
@@ -53,11 +57,11 @@ fn init_console(writer: &'static dyn Terminal) -> ImmutAfterInitResult<()> {
     Ok(())
 }
 
-pub fn init_svsm_console(writer: &'static dyn IOPort, port: u16) -> Result<(), SvsmError> {
+pub fn init_svsm_console(writer: &'static dyn IOPort, port: u64) -> Result<(), SvsmError> {
     CONSOLE_SERIAL
         .init_from_ref(&SerialPort::new(writer, port))
         .map_err(|_| SvsmError::Console)?;
-    (*CONSOLE_SERIAL).init();
+    // (*CONSOLE_SERIAL).init();
     init_console(&*CONSOLE_SERIAL).map_err(|_| SvsmError::Console)
 }
 

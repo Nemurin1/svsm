@@ -6,7 +6,7 @@
 
 use super::tss::X86Tss;
 use crate::address::VirtAddr;
-use crate::ro_after_init_section;
+// use crate::ro_after_init_section;
 use crate::types::{SVSM_CS, SVSM_DS, SVSM_TSS};
 use core::arch::asm;
 use core::mem;
@@ -58,7 +58,7 @@ const GDT_SIZE: u16 = 8;
 // SAFETY: after this section's pages are made read-only, a write to this section
 // is a memory safety violation triggering a #PF, which is the intended
 // behavior.
-#[unsafe(link_section = ro_after_init_section!())]
+// #[unsafe(link_section = ro_after_init_section!())]
 pub static GLOBAL_GDT: GDT = GDT::new();
 
 #[derive(Clone, Debug, Default)]
@@ -114,7 +114,10 @@ impl GDT {
         self.set_tss_entry(desc0, desc1);
         // SAFETY: loading task register must me done in assembly.
         // tss is ensured to have a static lifetime so this is safe.
-        unsafe { asm!("ltr %ax", in("ax") SVSM_TSS, options(att_syntax)) };
+        unsafe { 
+            //asm!("ltr %ax", in("x0") SVSM_TSS, /* options(att_syntax) */) 
+            asm!("nop");
+            };
         self.clear_tss_entry()
     }
 
@@ -134,9 +137,13 @@ impl GDT {
         // implements Drop to clean up if the GDT object ever ceases to be
         // valid.
         unsafe {
+            /*
             asm!("lgdt ({0})",
                  in(reg) &gdt_desc,
-                 options(att_syntax));
+                 //options(att_syntax)
+                );
+            */
+            asm!("nop");
         }
     }
 
@@ -148,6 +155,7 @@ impl GDT {
         // validity of any memory addresses and thus cannot impact memory
         // safety.
         unsafe {
+            /*
             asm!(r#" /* Load GDT */
 
                  /* Reload data segments */
@@ -164,9 +172,12 @@ impl GDT {
                  lretq
             1:
                  "#,
-                in("rdx") SVSM_CS,
-                in("rcx") SVSM_DS,
-                options(att_syntax));
+                in("x3") SVSM_CS,
+                in("x2") SVSM_DS,
+                //options(att_syntax)
+            );
+            */
+            asm!("nop");
         }
     }
 
@@ -195,9 +206,13 @@ impl Drop for GDT {
         // to `self` and not for data access, so memory safety is not affected
         // by the returned address.
         unsafe {
+            /*
             asm!("sgdt ({0})",
                  in(reg) &gdt_desc,
-                 options(att_syntax));
+                 //options(att_syntax)
+                );
+            */
+            asm!("nop");
         }
 
         let gdt_addr = gdt_desc.addr;

@@ -47,10 +47,12 @@ pub struct NativePlatform {
 impl NativePlatform {
     pub fn new(_suppress_svsm_interrupts: bool) -> Self {
         // Execution is not possible unless X2APIC is supported.
+        /*
         let features = CpuidResult::get(1, 0);
         if (features.ecx & 0x200000) == 0 {
             panic!("X2APIC is not supported");
         }
+        */
         Self {
             transition_cr3: u64::from(read_cr3()).try_into().unwrap(),
         }
@@ -63,13 +65,13 @@ impl SvsmPlatform for NativePlatform {
         SvsmPlatformType::Native
     }
 
-    fn env_setup(&mut self, debug_serial_port: u16, _vtom: usize) -> Result<(), SvsmError> {
+    fn env_setup(&mut self, debug_serial_port: u64, _vtom: usize) -> Result<(), SvsmError> {
         // In the native platform, console output does not require the use of
         // any platform services, so it can be initialized immediately.
         init_svsm_console(&DEFAULT_IO_DRIVER, debug_serial_port)
     }
 
-    fn env_setup_late(&mut self, _debug_serial_port: u16) -> Result<(), SvsmError> {
+    fn env_setup_late(&mut self, _debug_serial_port: u64) -> Result<(), SvsmError> {
         Ok(())
     }
 

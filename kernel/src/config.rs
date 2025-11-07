@@ -65,12 +65,15 @@ impl<'a> SvsmConfig<'a> {
         // Create a firmware config object if the IGVM parameter block
         // indicates that firmwrae config services are available on this
         // system.
+        /*
         let fw_cfg = if igvm_params.has_fw_cfg_port() {
             let io_port = platform.get_io_port();
             Some(FwCfg::new(io_port))
         } else {
             None
         };
+        */
+        let fw_cfg = None;
         Self {
             igvm_params,
             fw_cfg,

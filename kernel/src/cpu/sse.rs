@@ -7,7 +7,7 @@
 use crate::cpu::control_regs::{cr0_sse_enable, cr4_osfxsr_enable, cr4_xsave_enable};
 use crate::cpu::cpuid::CpuidResult;
 use core::arch::asm;
-use core::arch::x86_64::{_xgetbv, _xsetbv};
+// use core::arch::x86_64::{_xgetbv, _xsetbv};
 use core::sync::atomic::{AtomicU64, Ordering};
 
 const CPUID_EDX_SSE1: u32 = 25;
@@ -52,8 +52,8 @@ fn xcr0_set() {
     // SAFETY: No impact on memory safety, enables FPU87 and SSE XSAVE features
     unsafe {
         // set bits [0-2] in XCR0 to enable extended SSE
-        let xr0 = _xgetbv(0) | SVSM_XCR0.load(Ordering::Relaxed);
-        _xsetbv(0, xr0);
+        let xr0 = /*_xgetbv(0) | */ SVSM_XCR0.load(Ordering::Relaxed);
+        // _xsetbv(0, xr0);
     }
 }
 
@@ -90,14 +90,18 @@ pub unsafe fn sse_save_context(addr: u64) {
     // store is specific to a task and no other part of the code is accessing
     // this memory at the same time.
     unsafe {
+        /*
         asm!(
             r#"
             xsaveopt (%rsi)
             "#,
-            in("rsi") addr,
-            in("rax") save_bits,
-            in("rdx") 0,
-            options(att_syntax));
+            in("x4") addr,
+            in("x0") save_bits,
+            in("x3") 0,
+            //options(att_syntax)
+        );
+        */
+        asm!("nop");
     }
 }
 
@@ -111,13 +115,17 @@ pub unsafe fn sse_restore_context(addr: u64) {
     // store is specific to a task and no other part of the code is accessing
     // this memory at the same time.
     unsafe {
+        /*
         asm!(
             r#"
             xrstor (%rsi)
             "#,
-            in("rsi") addr,
-            in("rax") save_bits,
-            in("rdx") 0,
-            options(att_syntax));
+            in("x4") addr,
+            in("x0") save_bits,
+            in("x3") 0,
+            //options(att_syntax)
+        );
+        */
+        asm!("nop");
     }
 }

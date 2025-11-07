@@ -86,12 +86,36 @@ pub fn flush_tlb_percpu() {
 }
 
 pub fn flush_address_percpu(va: VirtAddr) {
+    /*
     let va: u64 = va.page_align().bits() as u64;
     // SAFETY: Inline assembly to invalidate TLB Entries, which does not change
     // any state related to memory safety.
     unsafe {
         asm!("invlpg (%rax)",
-             in("rax") va,
-             options(att_syntax));
+             in("x0") va,
+             //options(att_syntax)
+            );
+    }
+    */
+    let va_val: u64 = va.page_align().bits() as u64;
+
+    // SAFETY: Perform TLB maintenance for the given virtual address.
+    // Use DSB/ISB and TLBI VAE1 to invalidate the mapping in the local TLB.
+    unsafe {
+        // TLBI expects the page number (VA >> 12) in the register.
+        // DSB/ISH ensures prior stores complete / observation ordering,
+        // and ISB ensures subsequent instruction stream uses updated translation.
+        asm!(
+            // Data synchronization barrier (inner shareable) before invalidation:
+            "dsb ish",
+            // Invalidate by VA (EL1) for current ASID; pass VA >> 12.
+            "tlbi vae1, {va}",
+            // Ensure completion of TLB invalidation on inner shareable domain:
+            "dsb ish",
+            // Synchronize the instruction stream so subsequent translations use new state:
+            "isb",
+            va = in(reg) (va_val >> 12),
+            options(nostack, preserves_flags),
+        );
     }
 }

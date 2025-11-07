@@ -103,13 +103,13 @@ impl SvsmPlatform for SnpPlatform {
         SvsmPlatformType::Snp
     }
 
-    fn env_setup(&mut self, _debug_serial_port: u16, vtom: usize) -> Result<(), SvsmError> {
+    fn env_setup(&mut self, _debug_serial_port: u64, vtom: usize) -> Result<(), SvsmError> {
         sev_status_init();
         VTOM.init(vtom).map_err(|_| SvsmError::PlatformInit)?;
         Ok(())
     }
 
-    fn env_setup_late(&mut self, debug_serial_port: u16) -> Result<(), SvsmError> {
+    fn env_setup_late(&mut self, debug_serial_port: u64) -> Result<(), SvsmError> {
         init_svsm_console(&GHCB_IO_DRIVER, debug_serial_port)?;
         sev_status_verify();
         init_hypervisor_ghcb_features()?;

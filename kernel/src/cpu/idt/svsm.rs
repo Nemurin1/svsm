@@ -26,7 +26,7 @@ use crate::debug::gdbstub::svsm_gdbstub::handle_debug_exception;
 use crate::error::SvsmError;
 use crate::mm::{GuestPtr, PageBox, PAGE_SIZE};
 use crate::task::{is_task_fault, terminate};
-use crate::tdx::ve::handle_virtualization_exception;
+//  crate::tdx::ve::handle_virtualization_exception;
 use crate::utils::immut_after_init::ImmutAfterInitCell;
 use core::arch::global_asm;
 use core::mem;
@@ -48,7 +48,7 @@ pub fn load_static_idt() {
 }
 
 extern "C" {
-    pub fn return_new_task();
+    // pub fn return_new_task();
     pub fn default_return();
     fn asm_entry_de();
     fn asm_entry_db();
@@ -86,6 +86,7 @@ fn init_ist_vectors(idt: &mut IDT<'_>) {
 }
 
 fn init_idt_exceptions(idt: &mut IDT<'_>) {
+    /*
     idt.set_entry(DE_VECTOR, IdtEntry::entry(asm_entry_de));
     idt.set_entry(DB_VECTOR, IdtEntry::entry(asm_entry_db));
     idt.set_entry(NMI_VECTOR, IdtEntry::entry(asm_entry_nmi));
@@ -109,6 +110,7 @@ fn init_idt_exceptions(idt: &mut IDT<'_>) {
     idt.set_entry(HV_VECTOR, IdtEntry::entry(asm_entry_hv));
     idt.set_entry(VC_VECTOR, IdtEntry::entry(asm_entry_vc));
     idt.set_entry(SX_VECTOR, IdtEntry::entry(asm_entry_sx));
+    */
 }
 
 /// # Safety
@@ -338,7 +340,9 @@ extern "C" fn ex_handler_control_protection(ctxt: &mut X86ExceptionContext, _vec
 extern "C" fn ex_handler_ve(ctxt: &mut X86ExceptionContext) {
     let rip = ctxt.frame.rip;
     let code = ctxt.error_code;
-
+    
+    /*
+    移除了TDX
     if let Err(err) = handle_virtualization_exception(ctxt) {
         log::error!("#VE handling error: {:?}", err);
         if user_mode(ctxt) {
@@ -351,6 +355,7 @@ extern "C" fn ex_handler_ve(ctxt: &mut X86ExceptionContext) {
             );
         }
     }
+        */
 }
 
 // VMM Communication handler
@@ -477,6 +482,7 @@ pub fn common_isr_handler(vector: usize) {
     apic_eoi();
 }
 
+/*
 global_asm!(
     r#"
         .set const_false, 0
@@ -507,5 +513,6 @@ global_asm!(
     EXCEP_FLAGS_OFF = const offset_of!(X86ExceptionContext, frame.flags),
     EXCEP_FRAME_OFF = const offset_of!(X86ExceptionContext, frame),
     IS_CET_SUPPORTED = sym IS_CET_SUPPORTED,
-    options(att_syntax)
+    //options(att_syntax)
 );
+*/

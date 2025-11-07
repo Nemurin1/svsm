@@ -81,6 +81,7 @@ pub fn init_kernel_mapping_info(
 
 #[cfg(target_os = "none")]
 pub fn virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
+    log::info!("$$$");
     match PageTable::virt_to_frame(vaddr) {
         Some(paddr) => paddr.address(),
         None => {

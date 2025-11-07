@@ -67,7 +67,7 @@ impl TdpPlatform {
 impl SvsmPlatform for TdpPlatform {
     #[cfg(test)]
     fn platform_type(&self) -> SvsmPlatformType {
-        SvsmPlatformType::Tdp
+        // SvsmPlatformType::Tdp
     }
 
     fn halt() {

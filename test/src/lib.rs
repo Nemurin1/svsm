@@ -4,6 +4,8 @@
 //! The `test` crate is implicitly used by the `#[test]` attribute.
 #![no_std]
 
+pub mod test_edk2;
+
 #[derive(Clone, Copy)]
 pub struct TestDescAndFn {
     pub testfn: StaticTestFn,
@@ -44,3 +46,6 @@ pub enum ShouldPanic {
 }
 
 pub fn assert_test_result(_: ()) {}
+
+pub fn test_print() {
+}

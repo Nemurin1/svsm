@@ -1,0 +1,54 @@
+//嵌入式系统使用串口，而不是vga，直接输出，没有颜色控制，不记录列号，也没有frame buffer，所以采用空结构
+#[derive(Debug)]
+pub struct Writer;
+
+use lazy_static::lazy_static;
+use spin::Mutex;
+use core::ptr;
+use core::fmt;
+
+//往串口寄存器写入字节和字符串进行输出
+impl Writer {
+    pub fn write_byte(&mut self, byte: u8) {
+        const UART0: *mut u8 = 0x0900_0000 as *mut u8;
+        unsafe {
+            ptr::write_volatile(UART0, byte);
+        }
+    }
+
+    pub fn write_string(&mut self, s: &str) {
+        for byte in s.chars() {
+            self.write_byte(byte as u8)
+        }
+    }
+
+}
+
+impl core::fmt::Write for Writer {
+  fn write_str(&mut self, s: &str) -> fmt::Result {
+      self.write_string(s);
+
+      Ok(())
+  }
+}
+
+lazy_static! {
+    /// A global `Writer` instance that can be used for printing to the VGA text buffer.
+    ///
+    /// Used by the `print!` and `println!` macros.
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer { });
+}
+
+/// Like the `print!` macro in the standard library, but prints to the VGA text buffer.
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::svsm_arm64::uart_console::_print(format_args!($($arg)*)));
+}
+
+/// Prints the given formatted string to the VGA text buffer through the global `WRITER` instance.
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments<'_>) {
+    use core::fmt::Write;
+
+    WRITER.lock().write_fmt(args).unwrap();
+}

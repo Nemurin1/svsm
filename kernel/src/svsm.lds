@@ -1,42 +1,38 @@
-OUTPUT_ARCH(i386:x86-64)
-
+ENTRY(_start)
 SECTIONS
 {
-	. = 0xffffff8000000000;
-	.text : {
-		*(.startup.*)
-		*(.text)
-		*(.text.*)
-		. = ALIGN(16);
-		entry_code_start = .;
-		*(.entry.text)
-		entry_code_end = .;
-		. = ALIGN(16);
-		early_exception_table_start = .;
-		KEEP(*(__early_exception_table))
-		early_exception_table_end = .;
-		. = ALIGN(16);
-		exception_table_start = .;
-		KEEP(*(__exception_table))
-		exception_table_end = .;
-	}
-	. = ALIGN(4096);
-	.rodata : { *(.rodata) *(.rodata.*) }
-	. = ALIGN(4096);
-	.data : { *(.data) *(.data.*) }
-	. = ALIGN(4096);
-	.ro_after_init : {
-		ro_after_init_start = .;
-		*(.ro_after_init) *(.ro_after_init.*)
-		. = ALIGN(4096);
-		ro_after_init_end = .;
-	}
-	. = ALIGN(4096);
-	.bss : {
-		*(.bss) *(.bss.*)
-		. = ALIGN(4096);
-	}
-	. = ALIGN(4096);
-}
+    . = 0x40080000;
+    kernel_region_phys_start = .;
+    .text.boot : { *(.text.boot) }
+    .text :
+    {
+      KEEP(*(.text.boot))
+      *(.text.exceptions)
+      . = ALIGN(4096); /* align for exceptions_vector_table*/
+      *(.text.exceptions_vector_table)
+      *(.text)
+    }
+    .data : { 
+      *(.data) 
+    }
+    .rodata : { 
+      *(.rodata)
+    }
+    .bss : { 
+      *(.bss) 
+    }
 
-ENTRY(startup_64)
+    . = ALIGN(4096);
+    LD_TTBR0_BASE = .;
+    . = . + 0x1000;
+
+    LD_TTBR1_BASE = .;
+    . = . + 0x1000;
+
+    . = ALIGN(8);
+    . = . + 0xF000;
+    LD_STACK_PTR = .;
+
+    . = . + 0x1000;
+    kernel_region_phys_end = .;
+}

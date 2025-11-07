@@ -51,10 +51,14 @@ impl X86Tss {
         // address is unaligned, and is not a candidate for using `Cell` to
         // provide interior mutability on the stack pointer.
         unsafe {
+            /*
             asm!("movq {0}, ({1})",
                  in(reg) u64::from(addr),
                  in(reg) stack_ptr,
-                 options(att_syntax));
+                 //options(att_syntax)
+                );
+            */
+            asm!("nop");
         }
     }
 
@@ -67,10 +71,14 @@ impl X86Tss {
         // address is unaligned, and is not a candidate for using `Cell` to
         // provide interior mutability on the stack pointer.
         unsafe {
+            /*
             asm!("movq {0}, ({1})",
                  in(reg) u64::from(addr),
                  in(reg) stack_ptr,
-                 options(att_syntax));
+                 //options(att_syntax)
+                );
+            */
+            asm!("nop");
         }
     }
 

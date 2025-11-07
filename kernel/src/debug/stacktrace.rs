@@ -42,14 +42,18 @@ struct StackUnwinder {
     stacks: StacksBounds,
 }
 
+/*
+arm没有bsp
 extern "C" {
     static bsp_stack: u8;
     static bsp_stack_end: u8;
 }
+*/
 
 fn is_stage2() -> bool {
     // If the default BSP stack lands under 16MB, we're in Stage2.
-    (&raw const bsp_stack_end as usize) < (16 << 20)
+    // (&raw const bsp_stack_end as usize) < (16 << 20)
+    true
 }
 
 impl StackUnwinder {
@@ -58,8 +62,16 @@ impl StackUnwinder {
         // SAFETY: Inline assembly to read RBP, which does not change any state
         // related to memory safety.
         unsafe {
+            /*
+            获取栈指针
             asm!("movq %rbp, {}", out(reg) rbp,
-                 options(att_syntax));
+                 /*options(att_syntax)*/);
+            */
+            asm!(
+            "mov {fp}, x29",
+            fp = out(reg) rbp,
+            options(nostack, preserves_flags),
+        );
         };
 
         let stacks: StacksBounds = if let Some(cpu) = try_this_cpu() {
@@ -85,6 +97,7 @@ impl StackUnwinder {
                 let no_stack = MemoryRegion::new(VirtAddr::null(), 0);
                 [bsp_init_stack, no_stack, no_stack]
             } else {
+                /*
                 let bsp_init_stack = MemoryRegion::from_addresses(
                     VirtAddr::from(&raw const bsp_stack),
                     VirtAddr::from(&raw const bsp_stack_end),
@@ -92,6 +105,8 @@ impl StackUnwinder {
                 let cs_stack = MemoryRegion::new(SVSM_CONTEXT_SWITCH_STACK, STACK_TOTAL_SIZE);
                 let df_stack = MemoryRegion::new(SVSM_STACK_IST_DF_BASE, STACK_TOTAL_SIZE);
                 [bsp_init_stack, cs_stack, df_stack]
+                */
+                asm!("nop");
             }
         };
 

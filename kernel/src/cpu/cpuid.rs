@@ -77,26 +77,29 @@ pub struct CpuidResult {
 
 impl CpuidResult {
     pub fn get(cpuid_fn: u32, cpuid_subfn: u32) -> Self {
-        let mut result_eax: u32;
-        let mut result_ebx: u32;
-        let mut result_ecx: u32;
-        let mut result_edx: u32;
+        let mut result_eax: u32 = 0;
+        let mut result_ebx: u32 = 0;
+        let mut result_ecx: u32 = 0;
+        let mut result_edx: u32 = 0;
         // SAFETY: Inline assembly to execute the CPUID instruction which does
         // not change any state. Input registers (EAX, ECX) and output
         // registers (EAX, EBX, ECX, EDX) are safely managed.
+        /*
         unsafe {
             asm!("push %rbx",
                  "cpuid",
                  "movl %ebx, %edi",
                  "pop %rbx",
-                 in("eax") cpuid_fn,
-                 in("ecx") cpuid_subfn,
-                 lateout("eax") result_eax,
-                 lateout("edi") result_ebx,
-                 lateout("ecx") result_ecx,
-                 lateout("edx") result_edx,
-                 options(att_syntax));
+                 in("x0") cpuid_fn,
+                 in("x2") cpuid_subfn,
+                 lateout("x0") result_eax,
+                 lateout("x5") result_ebx,
+                 lateout("x2") result_ecx,
+                 lateout("x3") result_edx,
+                 //options(att_syntax)
+                );
         }
+        */
         Self {
             eax: result_eax,
             ebx: result_ebx,

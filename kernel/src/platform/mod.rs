@@ -8,7 +8,7 @@ pub mod capabilities;
 pub mod guest_cpu;
 pub mod native;
 pub mod snp;
-pub mod tdp;
+// pub mod tdp;
 
 mod snp_fw;
 pub use snp_fw::SevFWMetaData;
@@ -16,7 +16,7 @@ pub use snp_fw::SevFWMetaData;
 use capabilities::Caps;
 use native::NativePlatform;
 use snp::SnpPlatform;
-use tdp::TdpPlatform;
+// use tdp::TdpPlatform;
 
 use core::arch::asm;
 use core::fmt::Debug;
@@ -77,16 +77,17 @@ pub trait SvsmPlatform: Sync {
     {
         // SAFETY: executing HLT in assembly is always safe.
         unsafe {
-            asm!("hlt");
+            // asm!("hlt");
+            asm!("wfi");
         }
     }
 
     /// Performs basic early initialization of the runtime environment.
-    fn env_setup(&mut self, debug_serial_port: u16, vtom: usize) -> Result<(), SvsmError>;
+    fn env_setup(&mut self, debug_serial_port: u64, vtom: usize) -> Result<(), SvsmError>;
 
     /// Performs initialization of the platform runtime environment after
     /// the core system environment has been initialized.
-    fn env_setup_late(&mut self, debug_serial_port: u16) -> Result<(), SvsmError>;
+    fn env_setup_late(&mut self, debug_serial_port: u64) -> Result<(), SvsmError>;
 
     /// Performs initialiation of the environment specfic to the SVSM kernel
     /// (for services not used by stage2).
@@ -238,7 +239,7 @@ pub trait SvsmPlatform: Sync {
 #[derive(Clone, Copy, Debug)]
 pub enum SvsmPlatformCell {
     Snp(SnpPlatform),
-    Tdp(TdpPlatform),
+    // Tdp(TdpPlatform),
     Native(NativePlatform),
 }
 
@@ -251,9 +252,11 @@ impl SvsmPlatformCell {
             SvsmPlatformType::Snp => {
                 SvsmPlatformCell::Snp(SnpPlatform::new(suppress_svsm_interrupts))
             }
+            /*
             SvsmPlatformType::Tdp => {
                 SvsmPlatformCell::Tdp(TdpPlatform::new(suppress_svsm_interrupts))
             }
+                */
         }
     }
 
@@ -270,7 +273,7 @@ impl SvsmPlatformCell {
         match self {
             SvsmPlatformCell::Native(platform) => platform,
             SvsmPlatformCell::Snp(platform) => platform,
-            SvsmPlatformCell::Tdp(platform) => platform,
+            // SvsmPlatformCell::Tdp(platform) => platform,
         }
     }
 
@@ -278,7 +281,7 @@ impl SvsmPlatformCell {
         match self {
             SvsmPlatformCell::Native(platform) => platform,
             SvsmPlatformCell::Snp(platform) => platform,
-            SvsmPlatformCell::Tdp(platform) => platform,
+            // SvsmPlatformCell::Tdp(platform) => platform,
         }
     }
 }
@@ -299,6 +302,6 @@ pub fn halt() {
     match *SVSM_PLATFORM_TYPE {
         SvsmPlatformType::Native => NativePlatform::halt(),
         SvsmPlatformType::Snp => SnpPlatform::halt(),
-        SvsmPlatformType::Tdp => TdpPlatform::halt(),
+        // SvsmPlatformType::Tdp => TdpPlatform::halt(),
     }
 }

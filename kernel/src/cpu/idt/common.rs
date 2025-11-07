@@ -14,7 +14,7 @@ use crate::cpu::registers::{X86GeneralRegs, X86InterruptFrame};
 use crate::cpu::shadow_stack::is_cet_ss_supported;
 use crate::error::SvsmError;
 use crate::insn_decode::{InsnError, InsnMachineCtx, InsnMachineMem, Register, SegRegister};
-use crate::mm::ro_after_init::make_ro;
+// use crate::mm::ro_after_init::make_ro;
 use crate::mm::{GuestPtr, PageBox, PAGE_SIZE};
 use crate::platform::SVSM_PLATFORM;
 use crate::types::{Bytes, SVSM_CS};
@@ -79,9 +79,11 @@ impl X86ExceptionContext {
     /// actual hardware would have done it (e.g. for MMIO emulation, CPUID,
     /// MSR, etc.).
     pub unsafe fn set_rip(&mut self, new_rip: usize) {
-        self.frame.rip = new_rip;
+        // self.frame.rip = new_rip;
 
         if is_cet_ss_supported() {
+            /*
+            arm没有影子栈的支持
             let return_on_stack = (self.ssp + 8) as *const usize;
             let return_on_stack_val = new_rip;
             // SAFETY: Inline assembly to update the instruction pointer on
@@ -94,6 +96,7 @@ impl X86ExceptionContext {
                     in(reg) return_on_stack_val
                 );
             }
+            */
         }
     }
 }
@@ -371,7 +374,16 @@ impl<'a> IDT<'a> {
         // SAFETY: Inline assembly to load an IDT. `'static` lifetime ensures
         // that address is always available for the CPU.
         unsafe {
-            asm!("lidt (%rax)", in("rax") &desc, options(att_syntax));
+            /*
+            其实就是在加载异常描述符表，也就是arm的异常处理向量表，在start.S阶段就已经做了，但为了编译成功而修改
+            asm!("lidt (%rax)", in("x0") &desc);
+            */
+            asm!(
+                "msr VBAR_EL1, {}",
+                "isb",
+                in(reg) &desc,
+                options(nostack),
+            );
         }
     }
 
@@ -396,7 +408,10 @@ impl<'a> IDT<'a> {
         // SAFETY: 4k alignement on start address and size are verified.
         // The check that this method is called on the initialized global IDT
         // is delegated to the caller.
+        /*
         unsafe { make_ro(region) }
+        */
+        Ok(())
     }
 }
 
@@ -409,8 +424,18 @@ pub fn triple_fault() {
     // SAFETY: This ends execution, this function will not return so memory
     // safety is not an issue.
     unsafe {
+        /*
+        同样的道理
         asm!("lidt (%rax)
-              int3", in("rax") &desc, options(att_syntax));
+              int3", in("x0") &desc);
+        */
+        asm!(
+            "msr VBAR_EL1, {}",
+            "isb",
+            "brk #0", // Trigger exception / breakpoint; does not return if handler not present.
+            in(reg) &desc,
+            options(nostack)
+        );
     }
 }
 

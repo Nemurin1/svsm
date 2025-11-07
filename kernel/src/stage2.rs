@@ -7,8 +7,6 @@
 #![no_std]
 #![no_main]
 
-pub mod boot_stage2;
-
 use bootlib::kernel_launch::{
     KernelLaunchInfo, Stage2LaunchInfo, LOWMEM_END, STAGE2_HEAP_END, STAGE2_HEAP_START,
     STAGE2_STACK, STAGE2_STACK_END, STAGE2_START,
@@ -20,30 +18,30 @@ use core::slice;
 use core::sync::atomic::{AtomicU32, Ordering};
 use cpuarch::snp_cpuid::SnpCpuidTable;
 use elf::ElfError;
-use svsm::address::{Address, PhysAddr, VirtAddr};
-use svsm::config::SvsmConfig;
-use svsm::console::install_console_logger;
-use svsm::cpu::cpuid::{dump_cpuid_table, register_cpuid_table};
-use svsm::cpu::flush_tlb_percpu;
-use svsm::cpu::gdt::GLOBAL_GDT;
-use svsm::cpu::idt::stage2::{early_idt_init, early_idt_init_no_ghcb};
-use svsm::cpu::idt::{IdtEntry, EARLY_IDT_ENTRIES, IDT};
-use svsm::cpu::percpu::{this_cpu, PerCpu, PERCPU_AREAS};
-use svsm::debug::stacktrace::print_stack;
-use svsm::error::SvsmError;
-use svsm::igvm_params::IgvmParams;
-use svsm::mm::alloc::{memory_info, print_memory_info, root_mem_init};
-use svsm::mm::pagetable::{paging_init, PTEntryFlags, PageTable};
-use svsm::mm::validate::{
+use crate::address::{Address, PhysAddr, VirtAddr};
+use crate::config::SvsmConfig;
+use crate::console::install_console_logger;
+use crate::cpu::cpuid::{dump_cpuid_table, register_cpuid_table};
+use crate::cpu::flush_tlb_percpu;
+use crate::cpu::gdt::GLOBAL_GDT;
+use crate::cpu::idt::stage2::{early_idt_init, early_idt_init_no_ghcb};
+use crate::cpu::idt::{IdtEntry, EARLY_IDT_ENTRIES, IDT};
+use crate::cpu::percpu::{this_cpu, PerCpu, PERCPU_AREAS};
+// use crate::debug::stacktrace::print_stack;
+use crate::error::SvsmError;
+use crate::igvm_params::IgvmParams;
+use crate::mm::alloc::{memory_info, print_memory_info, root_mem_init};
+use crate::mm::pagetable::{paging_init, PTEntryFlags, PageTable};
+use crate::mm::validate::{
     init_valid_bitmap_alloc, valid_bitmap_addr, valid_bitmap_set_valid_range,
 };
-use svsm::mm::{init_kernel_mapping_info, FixedAddressMappingRange, SVSM_PERCPU_BASE};
-use svsm::platform;
-use svsm::platform::{
+use crate::mm::{init_kernel_mapping_info, FixedAddressMappingRange, SVSM_PERCPU_BASE};
+use crate::platform;
+use crate::platform::{
     init_platform_type, PageStateChangeOp, PageValidateOp, SvsmPlatform, SvsmPlatformCell,
 };
-use svsm::types::{PageSize, PAGE_SIZE, PAGE_SIZE_2M};
-use svsm::utils::{is_aligned, MemoryRegion};
+use crate::types::{PageSize, PAGE_SIZE, PAGE_SIZE_2M};
+use crate::utils::{is_aligned, MemoryRegion};
 
 use release::COCONUT_VERSION;
 
@@ -62,6 +60,7 @@ fn setup_stage2_allocator(heap_start: u64, heap_end: u64) {
 }
 
 fn init_percpu(platform: &mut dyn SvsmPlatform) -> Result<(), SvsmError> {
+    /*
     // SAFETY: this is the first CPU, so there can be no other dependencies
     // on multi-threaded access to the per-cpu areas.
     let percpu_shared = unsafe { PERCPU_AREAS.create_new(0) };
@@ -78,6 +77,7 @@ fn init_percpu(platform: &mut dyn SvsmPlatform) -> Result<(), SvsmError> {
     bsp_percpu.set_pgtable(init_pgtable);
     bsp_percpu.map_self_stage2()?;
     platform.setup_guest_host_comm(bsp_percpu, true);
+    */
     Ok(())
 }
 
@@ -157,6 +157,7 @@ unsafe fn setup_env(
 
     // SAFETY: ap_flag is an extern static and this is the only place where we
     // get a reference to it.
+    /*
     unsafe {
         // Allow APs to proceed as the environment is now ready.
         //
@@ -167,6 +168,7 @@ unsafe fn setup_env(
         // this flag more deterministic.
         ap_flag.store(1, Ordering::Release);
     }
+        */
 
     // Configure the heap.
     setup_stage2_allocator(STAGE2_HEAP_START.into(), STAGE2_HEAP_END.into());
@@ -443,18 +445,18 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
     let mut platform_cell = SvsmPlatformCell::new(true);
     let platform = platform_cell.platform_mut();
 
-    let config = get_svsm_config(launch_info, platform).expect("Failed to get SVSM configuration");
+    // let config = get_svsm_config(launch_info, platform).expect("Failed to get SVSM configuration");
 
     // Set up space for an early IDT.  This will remain in scope as long as
     // stage2 is in memory.
-    let mut early_idt = [IdtEntry::no_handler(); EARLY_IDT_ENTRIES];
-    let mut idt = IDT::new(&mut early_idt);
+    // let mut early_idt = [IdtEntry::no_handler(); EARLY_IDT_ENTRIES];
+    // let mut idt = IDT::new(&mut early_idt);
 
     // SAFETY: the IDT here will remain in scope until the full IDT is
     // initialized later, and thus can safely be used as the early IDT.
-    unsafe {
-        setup_env(&config, platform, launch_info, &mut idt);
-    }
+    // unsafe {
+    //     setup_env(&config, platform, launch_info, &mut idt);
+    // }
 
     // Get the available physical memory region for the kernel
     let kernel_region = config
@@ -469,28 +471,28 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
     let mut loaded_kernel_pregion = MemoryRegion::new(kernel_region.start(), 0);
 
     // Load first the kernel ELF and update the loaded physical region
-    let (kernel_entry, mut loaded_kernel_vregion) =
-        load_kernel_elf(launch_info, &mut loaded_kernel_pregion, platform, &config)
-            .expect("Failed to load kernel ELF");
+    // let (kernel_entry, mut loaded_kernel_vregion) =
+    //     load_kernel_elf(launch_info, &mut loaded_kernel_pregion, platform, &config)
+    //         .expect("Failed to load kernel ELF");
 
     // Load the IGVM params, if present. Update loaded region accordingly.
     // SAFETY: The loaded kernel region was correctly calculated above and
     // is sized appropriately to include a copy of the IGVM parameters.
-    let (igvm_vregion, igvm_pregion) = unsafe {
-        load_igvm_params(
-            launch_info,
-            config.get_igvm_params(),
-            &loaded_kernel_vregion,
-            &loaded_kernel_pregion,
-            platform,
-            &config,
-        )
-    }
-    .expect("Failed to load IGVM params");
+    // let (igvm_vregion, igvm_pregion) = unsafe {
+    //     load_igvm_params(
+    //         launch_info,
+    //         config.get_igvm_params(),
+    //         &loaded_kernel_vregion,
+    //         &loaded_kernel_pregion,
+    //         platform,
+    //         &config,
+    //    )
+    // }
+    // .expect("Failed to load IGVM params");
 
     // Update the loaded kernel region
-    loaded_kernel_pregion = loaded_kernel_pregion.expand(igvm_vregion.len());
-    loaded_kernel_vregion = loaded_kernel_vregion.expand(igvm_pregion.len());
+    // loaded_kernel_pregion = loaded_kernel_pregion.expand(igvm_vregion.len());
+    // loaded_kernel_vregion = loaded_kernel_vregion.expand(igvm_pregion.len());
 
     // Use remaining space after kernel image as heap space.
     let (heap_vregion, heap_pregion) = prepare_heap(
@@ -511,6 +513,7 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
 
     // Build the handover information describing the memory layout and hand
     // control to the SVSM kernel.
+    /*
     let launch_info = KernelLaunchInfo {
         kernel_region_phys_start: u64::from(kernel_region.start()),
         kernel_region_phys_end: u64::from(kernel_region.end()),
@@ -536,12 +539,39 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
         suppress_svsm_interrupts,
         platform_type,
     };
+    */
+    let launch_info = KernelLaunchInfo {
+        kernel_region_phys_start: u64::from(kernel_region.start()),
+        kernel_region_phys_end: u64::from(kernel_region.end()),
+        heap_area_phys_start: u64::from(heap_pregion.start()),
+        heap_area_virt_start: u64::from(heap_vregion.start()),
+        heap_area_size: heap_vregion.len() as u64,
+        kernel_elf_stage2_virt_start: u64::from(launch_info.kernel_elf_start),
+        kernel_elf_stage2_virt_end: u64::from(launch_info.kernel_elf_end),
+        kernel_fs_start: u64::from(launch_info.kernel_fs_start),
+        kernel_fs_end: u64::from(launch_info.kernel_fs_end),
+        stage2_start: 0x800000u64,
+        stage2_end: launch_info.stage2_end as u64,
+        cpuid_page: launch_info.cpuid_page as u64,
+        secrets_page: launch_info.secrets_page as u64,
+        stage2_igvm_params_phys_addr: u64::from(launch_info.igvm_params),
+        vtom: launch_info.vtom,
+        debug_serial_port: config.debug_serial_port(),
+        use_alternate_injection: config.use_alternate_injection(),
+        suppress_svsm_interrupts,
+        platform_type,
+        kernel_region_virt_start: todo!(),
+        stage2_igvm_params_size: todo!(),
+        igvm_params_phys_addr: todo!(),
+        igvm_params_virt_addr: todo!(),
+    };
 
     check_launch_info(&launch_info);
 
     let mem_info = memory_info();
     print_memory_info(&mem_info);
-
+    
+    /*
     log::info!(
         "  kernel_region_phys_start = {:#018x}",
         kernel_region.start()
@@ -551,13 +581,15 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
         "  kernel_virtual_base      = {:#018x}",
         loaded_kernel_vregion.start()
     );
+    */
 
     let valid_bitmap = valid_bitmap_addr();
 
-    log::info!("Starting SVSM kernel...");
+    // log::info!("Starting SVSM kernel...");
 
     // SAFETY: the addreses used to invoke the kernel have been calculated
     // correctly for use in the assembly trampoline.
+    /*
     unsafe {
         // Shut down the PerCpu instance
         shutdown_percpu();
@@ -566,20 +598,23 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
              in("rax") u64::from(kernel_entry),
              in("rdi") &launch_info,
              in("rsi") valid_bitmap.bits(),
-             options(att_syntax))
+             /*options(att_syntax)*/)
     };
+    */
 
     unreachable!("Road ends here!");
 }
 
+/*
 #[panic_handler]
 fn panic(info: &PanicInfo<'_>) -> ! {
     log::error!("Panic! COCONUT-SVSM Version: {}", COCONUT_VERSION);
     log::error!("Info: {}", info);
 
-    print_stack(3);
+    // print_stack(3);
 
     loop {
         platform::halt();
     }
 }
+    */

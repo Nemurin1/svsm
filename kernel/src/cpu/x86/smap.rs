@@ -13,7 +13,9 @@ use core::arch::asm;
 pub fn clac() {
     if !cfg!(feature = "nosmap") {
         // SAFETY: `clac` instruction doesn't break memory safety.
-        unsafe { asm!("clac", options(att_syntax, nomem, nostack, preserves_flags)) }
+        unsafe { 
+            // asm!("clac", /* options(att_syntax, nomem, nostack, preserves_flags) */) 
+        }
     }
 }
 
@@ -24,6 +26,8 @@ pub fn clac() {
 pub fn stac() {
     if !cfg!(feature = "nosmap") {
         // SAFETY: `stac` instruction doesn't break memory safety.
-        unsafe { asm!("stac", options(att_syntax, nomem, nostack, preserves_flags)) }
+        unsafe { 
+            // asm!("stac", /* options(att_syntax, nomem, nostack, preserves_flags) */) 
+        }
     }
 }

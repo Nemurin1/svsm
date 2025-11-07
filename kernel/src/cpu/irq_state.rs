@@ -21,7 +21,8 @@ pub fn raw_irqs_disable() {
     // SAFETY: Inline assembly to disable IRQs, which does not change any state
     // related to memory safety.
     unsafe {
-        asm!("cli", options(att_syntax, preserves_flags, nomem));
+        // asm!("cli", /* /* options(att_syntax, preserves_flags, nomem) */ */);
+        asm!("msr daifset, #2", options(nomem, nostack));
     }
 }
 
@@ -35,7 +36,8 @@ pub fn raw_irqs_enable() {
     // SAFETY: Inline assembly to enable IRQs, which does not change any state
     // related to memory safety.
     unsafe {
-        asm!("sti", options(att_syntax, preserves_flags, nomem));
+        // asm!("sti", /* options(att_syntax, preserves_flags, nomem) */);
+        asm!("msr daifclr, #2", options(nomem, nostack));
     }
 
     // Now that interrupts are enabled, process any #HV events that may be
@@ -51,6 +53,7 @@ pub fn raw_irqs_enable() {
 #[inline(always)]
 #[must_use = "Unused irqs_enabled() result - meant to be irq_enable()?"]
 pub fn irqs_enabled() -> bool {
+    /*
     let state: usize;
     // SAFETY: The inline assembly just reads the processors RFLAGS register
     // and does not change any state.
@@ -58,10 +61,24 @@ pub fn irqs_enabled() -> bool {
         asm!("pushfq",
              "popq {}",
              out(reg) state,
-             options(att_syntax, preserves_flags));
+             /* options(att_syntax, preserves_flags) */);
     };
 
     (state & EFLAGS_IF) == EFLAGS_IF
+    */
+    let daif: usize;
+    // SAFETY: 仅仅读取 DAIF 状态寄存器，不修改状态。
+    unsafe {
+        asm!(
+            "mrs {0}, DAIF",    // 读取当前异常级的中断屏蔽位
+            out(reg) daif,
+            options(nomem, preserves_flags)
+        );
+    }
+
+    // 位 7 (IRQ) 为 1 表示 IRQ 被禁用，0 表示启用
+    let irq_masked = (daif >> 7) & 1;
+    irq_masked == 0
 }
 
 /// Query IRQ state on current CPU
@@ -92,10 +109,16 @@ pub fn tpr_from_vector(vector: usize) -> usize {
 pub fn raw_set_tpr(tpr_value: usize) {
     // SAFETY: Inline assembly to change TPR, which does not change any state
     // related to memory safety.
+    /*
     unsafe {
         asm!("mov {tpr}, %cr8",
              tpr = in(reg) tpr_value,
-             options(att_syntax));
+             //options(att_syntax)
+            );
+    }
+    */
+    unsafe{
+        asm!("msr ICC_PMR_EL1, {0}", in(reg) tpr_value);
     }
 }
 
@@ -108,12 +131,20 @@ pub fn raw_set_tpr(tpr_value: usize) {
 pub fn raw_get_tpr() -> usize {
     // SAFETY: The inline assembly just reads the TPR register and does not
     // change any state.
+    /*
     unsafe {
         let mut ret: usize;
         asm!("movq %cr8, {tpr}",
              tpr = out(reg) ret,
-             options(att_syntax));
+             //options(att_syntax)
+            );
         ret
+    }
+    */
+    unsafe{
+        let mut tpr: usize;
+        asm!("mrs {0}, ICC_PMR_EL1", out(reg) tpr);
+        tpr
     }
 }
 

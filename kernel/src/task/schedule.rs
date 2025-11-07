@@ -448,15 +448,15 @@ unsafe fn switch_to(prev: *const Task, next: *const Task) {
         let tos_cs: u64 = this_cpu().get_top_of_context_switch_stack().unwrap().into();
 
         // Switch to new task
+        /*
         asm!(
             r#"
-            call switch_context
+            bl switch_context
             "#,
-            in("r12") prev as u64,
-            in("r13") next as u64,
-            in("r14") tos_cs,
-            in("r15") cr3,
-            options(att_syntax));
+            in("x12") prev as u64,
+            in("x13") next as u64,
+            in("x14") tos_cs,
+            in("x15") cr3,);*/
     }
 }
 
@@ -593,6 +593,8 @@ pub fn schedule_task(task: TaskPointer) {
     schedule();
 }
 
+/*
+这部分代码其实也不需要，我们的环境是单cpu，p0也只需要运行svsm
 global_asm!(
     r#"
         .text
@@ -685,8 +687,20 @@ global_asm!(
     TASK_SSP_OFFSET = const offset_of!(Task, ssp),
     IS_CET_SUPPORTED = sym IS_CET_SUPPORTED,
     CONTEXT_SWITCH_RESTORE_TOKEN = const CONTEXT_SWITCH_RESTORE_TOKEN.as_usize(),
-    options(att_syntax)
 );
+*/
+
+global_asm!(
+    r#"
+        .text
+
+    switch_context:
+        nop
+
+        ret
+    "#,
+);
+
 
 /// The location of a cpu-local shadow stack restore token that's mapped into
 /// every set of page tables for use during context switches.

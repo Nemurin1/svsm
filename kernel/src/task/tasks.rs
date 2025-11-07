@@ -15,7 +15,7 @@ use core::num::NonZeroUsize;
 use core::sync::atomic::{AtomicU32, Ordering};
 
 use crate::address::{Address, VirtAddr};
-use crate::cpu::idt::svsm::return_new_task;
+// use crate::cpu::idt::svsm::return_new_task;
 use crate::cpu::irq_state::EFLAGS_IF;
 use crate::cpu::percpu::{current_task, PerCpu};
 use crate::cpu::shadow_stack::{init_shadow_stack, is_cet_ss_supported};
@@ -240,7 +240,8 @@ impl Task {
         // Determine which kernel-mode entry/exit routines will be used for
         // this task.
         let (entry_return, exit_return) = if task_mm.has_user() {
-            (return_new_task as usize, None)
+            // (return_new_task as usize, None)
+            (run_kernel_task as usize, Some(task_exit as usize))
         } else {
             (run_kernel_task as usize, Some(task_exit as usize))
         };
@@ -580,6 +581,7 @@ impl Task {
         //
         // SAFETY: we ensure that both `X86ExceptionContext` and `TaskContext`
         // can be written to valid memory.
+        /*
         unsafe {
             // Setup IRQ return frame.  User-mode tasks always run with
             // interrupts enabled.
@@ -612,6 +614,7 @@ impl Task {
                 .cast::<TaskContext>();
             *stack_task_context = task_context;
         }
+            */
 
         Ok((mapping, bounds, stack_offset + size_of::<TaskContext>()))
     }
@@ -878,7 +881,7 @@ mod tests {
     fn test_media_and_x87_instructions() {
         let ret: u64;
         unsafe {
-            asm!("call test_fpu", out("rax") ret, options(att_syntax));
+            asm!("call test_fpu", out("rax") ret, /*options(att_syntax)*/);
         }
 
         assert_eq!(ret, 0);
@@ -903,7 +906,7 @@ mod tests {
         movq $0, %rax
         ret
         "#,
-        options(att_syntax)
+        /*options(att_syntax)*/
     );
 
     global_asm!(
@@ -933,7 +936,7 @@ mod tests {
     1:
         ret
         "#,
-        options(att_syntax)
+        /*options(att_syntax)*/
     );
 
     global_asm!(
@@ -954,7 +957,7 @@ mod tests {
         movq $0, %rax
         ret
         "#,
-        options(att_syntax)
+        /*options(att_syntax)*/
     );
 
     #[test]
@@ -969,14 +972,14 @@ mod tests {
 
         let ret: u64;
         unsafe {
-            asm!("call test_fpu", options(att_syntax));
+            asm!("call test_fpu", /*options(att_syntax)*/);
         }
 
         start_kernel_task(task2, 2, String::from("task2"))
             .expect("Failed to launch request processing task");
 
         unsafe {
-            asm!("call check_fpu", out("rax") ret, options(att_syntax));
+            asm!("call check_fpu", out("rax") ret, /*options(att_syntax)*/);
         }
         assert_eq!(ret, 0);
     }
@@ -984,7 +987,7 @@ mod tests {
     extern "C" fn task2(start_parameter: usize) {
         assert_eq!(start_parameter, 2);
         unsafe {
-            asm!("call alter_fpu", options(att_syntax));
+            asm!("call alter_fpu", /*options(att_syntax)*/);
         }
     }
 }

@@ -8,21 +8,21 @@ use super::io::{IOPort, DEFAULT_IO_DRIVER};
 use crate::{error::SvsmError, io};
 use core::fmt::Debug;
 
-pub const SERIAL_PORT: u16 = 0x3f8;
+pub const SERIAL_PORT: u64 = 0x3f8;
 const BAUD: u32 = 9600;
 const DLAB: u8 = 0x80;
 
-pub const TXR: u16 = 0; // Transmit register
-pub const _RXR: u16 = 0; // Receive register
-pub const IER: u16 = 1; // Interrupt enable
-pub const _IIR: u16 = 2; // Interrupt ID
-pub const FCR: u16 = 2; // FIFO Control
-pub const LCR: u16 = 3; // Line Control
-pub const MCR: u16 = 4; // Modem Control
-pub const LSR: u16 = 5; // Line Status
-pub const _MSR: u16 = 6; // Modem Status
-pub const DLL: u16 = 0; // Divisor Latch Low
-pub const DLH: u16 = 1; // Divisor Latch High
+pub const TXR: u64 = 0; // Transmit register
+pub const _RXR: u64 = 0; // Receive register
+pub const IER: u64 = 1; // Interrupt enable
+pub const _IIR: u64 = 2; // Interrupt ID
+pub const FCR: u64 = 2; // FIFO Control
+pub const LCR: u64 = 3; // Line Control
+pub const MCR: u64 = 4; // Modem Control
+pub const LSR: u64 = 5; // Line Status
+pub const _MSR: u64 = 6; // Modem Status
+pub const DLL: u64 = 0; // Divisor Latch Low
+pub const DLH: u64 = 1; // Divisor Latch High
 
 pub const RCVRDY: u8 = 0x01;
 pub const XMTRDY: u8 = 0x20;
@@ -37,11 +37,11 @@ pub trait Terminal: Sync + Debug {
 #[derive(Debug, Copy, Clone)]
 pub struct SerialPort<'a> {
     driver: &'a dyn IOPort,
-    port: u16,
+    port: u64,
 }
 
 impl<'a> SerialPort<'a> {
-    pub const fn new(driver: &'a dyn IOPort, p: u16) -> Self {
+    pub const fn new(driver: &'a dyn IOPort, p: u64) -> Self {
         SerialPort { driver, port: p }
     }
 
@@ -61,13 +61,13 @@ impl<'a> SerialPort<'a> {
     }
 
     #[inline]
-    fn inb(&self, port: u16) -> u8 {
-        self.driver.inb(self.port + port)
+    fn inb(&self, port: u64) -> u8 {
+        self.driver.inb((self.port + port).try_into().unwrap())
     }
 
     #[inline]
-    fn outb(&self, port: u16, val: u8) {
-        self.driver.outb(self.port + port, val);
+    fn outb(&self, port: u64, val: u8) {
+        self.driver.outb((self.port + port).try_into().unwrap(), val);
     }
 }
 

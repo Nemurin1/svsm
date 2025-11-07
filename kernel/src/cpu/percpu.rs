@@ -1181,13 +1181,14 @@ pub fn this_cpu() -> &'static PerCpu {
 }
 
 pub fn try_this_cpu() -> Option<&'static PerCpu> {
-    let mut rcx: u64;
+    let mut rcx: u64 = 1;
 
     // SAFETY: Inline assembly to test the validity of the PerCpu page.
     // Any #PF generated here is handled by the #PF handler and it will
     // either return an error in %rcx or crash the system. This however
     // does not impact any state related to memory safety.
     unsafe {
+        /*
         asm!("1: movq ({0}), {1}",
              "   xorq %rcx, %rcx",
              "2:",
@@ -1198,8 +1199,10 @@ pub fn try_this_cpu() -> Option<&'static PerCpu> {
              ".popsection",
                 in(reg) SVSM_PERCPU_BASE.bits(),
                 out(reg) _,
-                out("rcx") rcx,
-                options(att_syntax, nostack));
+                out("x2") rcx,
+                /* options(att_syntax, nostack) */);
+        */
+        asm!("nop");
     }
     if rcx == 0 {
         Some(this_cpu())

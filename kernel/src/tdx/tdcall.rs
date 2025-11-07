@@ -78,7 +78,7 @@ unsafe fn tdg_mem_page_accept(frame: PageFrame) -> u64 {
                  in("rax") TDG_MEM_PAGE_ACCEPT,
                  in("rcx") EptMappingInfo::from(frame).into_bits(),
                  lateout("rax") ret,
-                 options(att_syntax));
+                 /*options(att_syntax)*/);
             ret
         };
         if !tdx_recoverable_error(err) {
@@ -283,7 +283,7 @@ pub fn tdcall_get_ve_info() -> Option<TdVeInfo> {
              out("r8") out_r8,
              out("r9") out_r9,
              out("r10") out_r10,
-             options(att_syntax));
+             /*options(att_syntax)*/);
         ret
     };
     match tdx_result(err) {
@@ -313,7 +313,7 @@ pub fn tdcall_vm_read(field: u64) -> u64 {
                  lateout("rax") ret,
                  lateout("rdx") _,
                  out("r8") val,
-                 options(att_syntax));
+                 /*options(att_syntax)*/);
             ret
         };
         if !tdx_recoverable_error(err) {
@@ -345,7 +345,7 @@ pub fn tdvmcall_map_gpa(mut gpa: u64, size: u64) -> Result<(), TdxError> {
                  lateout("rax") ret,
                  lateout("r10") vmcall_ret,
                  lateout("r11") retry_gpa,
-                 options(att_syntax));
+                 /*options(att_syntax)*/);
         }
 
         debug_assert!(tdx_result(ret).is_ok());
@@ -386,7 +386,7 @@ pub fn tdvmcall_cpuid(cpuid_fn: u32, cpuid_subfn: u32) -> CpuidResult {
              lateout("r13") result_ebx,
              lateout("r14") result_ecx,
              lateout("r15") result_edx,
-             options(att_syntax));
+             /*options(att_syntax)*/);
     }
     // r10 is expected to be TDG.VP.VMCALL_SUCCESS per the GHCI spec
     // Make sure the result matches the expectation
@@ -418,7 +418,7 @@ pub fn tdvmcall_rdmsr(msr: u32) -> u64 {
              lateout("rax") ret,
              lateout("r10") vmcall_ret,
              lateout("r11") result,
-             options(att_syntax));
+             /*options(att_syntax)*/);
     }
     // r10 is expected to be TDG.VP.VMCALL_SUCCESS per the GHCI spec
     // Make sure the result matches the expectation
@@ -444,7 +444,7 @@ pub fn tdvmcall_wrmsr(msr: u32, value: u64) {
              in("r13") value,
              lateout("rax") ret,
              lateout("r10") vmcall_ret,
-             options(att_syntax));
+             /*options(att_syntax)*/);
     }
     // r10 is expected to be TDG.VP.VMCALL_SUCCESS per the GHCI spec
     // Make sure the result matches the expectation
@@ -468,7 +468,7 @@ pub fn tdvmcall_halt() {
              lateout("r10") vmcall_ret,
              lateout("r11") _,
              lateout("r12") _,
-             options(att_syntax));
+             /*options(att_syntax)*/);
     }
     // r10 is expected to be TDG.VP.VMCALL_SUCCESS per the GHCI spec
     // Make sure the result matches the expectation
@@ -499,7 +499,7 @@ fn tdvmcall_io(port: u16, data: u32, size: usize, write: bool) -> u32 {
              lateout("r13") _,
              lateout("r14") _,
              lateout("r15") _,
-             options(att_syntax));
+             /*options(att_syntax)*/);
     }
 
     // Ignore errors here.  The caller cannot handle them, and since the
@@ -544,7 +544,7 @@ pub fn tdvmcall_hyperv_hypercall(regs: &mut X86GeneralRegs) {
              lateout("rax") ret,
              lateout("r10") vmcall_ret,
              lateout("r11") hypercall_ret,
-             options(att_syntax));
+             /*options(att_syntax)*/);
     }
 
     // Ignore errors here.  The caller cannot handle them, and the final

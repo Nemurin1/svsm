@@ -18,22 +18,26 @@ const INVLPGB_VALID_GLOBAL: u64 = 1u64 << 3;
 fn do_invlpgb(rax: u64, rcx: u64, rdx: u64) {
     // SAFETY: Inline assembly to invalidate TLB Entries, which does not change
     // any state related to memory safety.
+    /*
     unsafe {
         asm!("invlpgb",
-             in("rax") rax,
-             in("rcx") rcx,
-             in("rdx") rdx,
-             options(att_syntax));
+             in("x0") rax,
+             in("x3") rcx,
+             in("x4") rdx,
+             /*options(att_syntax)*/);
     }
+             */
 }
 
 #[inline]
 fn do_tlbsync() {
     // SAFETY: Inline assembly to synchronize TLB invalidations. It does not
     // change any state.
+    /*
     unsafe {
-        asm!("tlbsync", options(att_syntax));
+        asm!("tlbsync", /*options(att_syntax)*/);
     }
+        */
 }
 
 pub fn flush_tlb() {

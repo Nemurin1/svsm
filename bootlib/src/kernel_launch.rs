@@ -14,8 +14,10 @@ pub const SIPI_STUB_GPA: u32 = 0xF000;
 // The first 640 KB of RAM (low memory)
 pub const LOWMEM_END: u32 = 0xA0000;
 
-pub const STAGE2_HEAP_START: u32 = 0x10000; // 64 KB
-pub const STAGE2_HEAP_END: u32 = LOWMEM_END; // 640 KB
+// pub const STAGE2_HEAP_START: u32 = 0x10000; // 64 KB
+// pub const STAGE2_HEAP_END: u32 = LOWMEM_END; // 640 KB
+pub const STAGE2_HEAP_START: u32 = 0x40000000;
+pub const STAGE2_HEAP_END: u32 = 0x40000000 + LOWMEM_END - 0x10000;
 pub const STAGE2_BASE: u32 = 0x800000; // Start of stage2 area excluding heap
 pub const STAGE2_STACK_END: u32 = STAGE2_BASE;
 pub const STAGE2_STACK_PAGE: u32 = 0x805000;
@@ -51,7 +53,7 @@ pub struct KernelLaunchInfo {
     pub igvm_params_phys_addr: u64,
     pub igvm_params_virt_addr: u64,
     pub vtom: u64,
-    pub debug_serial_port: u16,
+    pub debug_serial_port: u64,
     pub use_alternate_injection: bool,
     pub suppress_svsm_interrupts: bool,
     pub platform_type: SvsmPlatformType,

@@ -851,7 +851,8 @@ pub fn switch_to_vmpl(vmpl: u32) {
         }
     }
 }
-
+/*
+这一部分内容需要重写为rsi_plane_enter
 global_asm!(
     r#"
         .globl switch_to_vmpl_unsafe
@@ -900,9 +901,16 @@ global_asm!(
         ret
         "#,
     SEV_GHCB = const SEV_GHCB,
-    options(att_syntax)
 );
+*/
+global_asm!(
+    r#"
+        .globl switch_to_vmpl_unsafe
+    switch_to_vmpl_unsafe:
 
+        nop
+        "#,
+);
 #[cfg(test)]
 mod tests {
     use super::*;

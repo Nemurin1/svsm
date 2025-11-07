@@ -371,13 +371,27 @@ pub unsafe fn execute_hypercall(
     let mut output: u64;
     // SAFETY: inline assembly is required to invoke the hypercall.
     unsafe {
+        /*
+        sev-snp是hypercall，cca应该是rsi
         asm!("callq *%rax",
-             in("rax") hypercall_va,
-             in("rcx") input_control.into_bits(),
-             in("rdx") u64::from(hypercall_pages.input.paddr),
-             in("r8") u64::from(hypercall_pages.output.paddr),
-             lateout("rax") output,
-             options(att_syntax));
+             in("x0") hypercall_va,
+             in("x2") input_control.into_bits(),
+             in("x3") u64::from(hypercall_pages.input.paddr),
+             in("x8") u64::from(hypercall_pages.output.paddr),
+             lateout("x0") output,
+             /*options(att_syntax)*/);
+        */
+        asm!(
+            // Branch with link to the address in x0 (call the hypercall page)
+            "blr x0",
+            in("x0") hypercall_va,
+            in("x2") input_control.into_bits(),
+            in("x3") u64::from(hypercall_pages.input.paddr),
+            in("x8") u64::from(hypercall_pages.output.paddr),
+            lateout("x0") output,
+            // No stack usage by asm, preserve flags not necessary on AArch64
+            options(nostack),
+        );
     }
     HvHypercallOutput::from(output)
 }

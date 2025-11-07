@@ -149,7 +149,8 @@ impl HVDoorbell {
             assert_eq!(irq_state.pop_nesting(), 0);
             // SAFETY: interrupts can now be enabled directly.
             unsafe {
-                asm!("sti");
+                // asm!("sti");
+                asm!("msr daifclr, #2");
             }
         }
     }

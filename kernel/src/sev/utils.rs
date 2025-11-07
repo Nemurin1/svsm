@@ -128,6 +128,8 @@ pub unsafe fn pvalidate(
     size: PageSize,
     valid: PvalidateOp,
 ) -> Result<(), SvsmError> {
+    /*
+    arm没有pvalidate，需要修改页表项
     let rax = vaddr.bits();
     let rcx: u64 = match size {
         PageSize::Regular => 0,
@@ -142,12 +144,12 @@ pub unsafe fn pvalidate(
         asm!("xorq %r8, %r8",
              "pvalidate",
              "adcq %r8, %r8",
-             in("rax")  rax,
-             in("rcx")  rcx,
-             in("rdx")  rdx,
-             lateout("rax") ret,
-             lateout("r8") cf,
-             options(att_syntax));
+             in("x0")  rax,
+             in("x1")  rcx,
+             in("x2")  rdx,
+             lateout("x0") ret,
+             lateout("x8") cf,
+             /*options(att_syntax)*/);
     }
 
     let changed = cf == 0;
@@ -162,6 +164,8 @@ pub unsafe fn pvalidate(
             unreachable!();
         }
     }
+    */
+    Ok(())
 }
 
 /// Executes the vmmcall instruction.
@@ -173,20 +177,23 @@ pub unsafe fn pvalidate(
 /// the raw call have contents that are consistent with the expectations of
 /// memory safety.
 pub unsafe fn raw_vmmcall(eax: u32, ebx: u32, ecx: u32, edx: u32) -> i32 {
-    let new_eax;
+    let new_eax = 0;
     // SAFETY: the caller promises that the VMMCALL operation is safe.
     unsafe {
+        /*
+        arm有hypercall指令hvc。但plane应该调用的是rsi
         asm!(
             // bx register is reserved by llvm so it can't be passed in
             // directly and must be restored
-            "xchg %rbx, {0:r}",
+            "xchg %rbx, {0:x}",
             "vmmcall",
-            "xchg %rbx, {0:r}",
+            "xchg %rbx, {0:x}",
             in(reg) ebx as u64,
-            inout("eax") eax => new_eax,
-            in("ecx") ecx,
-            in("edx") edx,
-            options(att_syntax));
+            inout("x0") eax => new_eax,
+            in("x1") ecx,
+            in("x2") edx,
+            /*options(att_syntax)*/);
+        */
     }
     new_eax
 }
@@ -194,15 +201,22 @@ pub unsafe fn raw_vmmcall(eax: u32, ebx: u32, ecx: u32, edx: u32) -> i32 {
 /// Sets the dr7 register to the given value
 pub fn set_dr7(new_val: u64) {
     // SAFETY: writing DR7 does not affect memory safety.
+    /*
+    arm没有dr（debug register），对应的可能是BVRn（Breakpoint Value Register）、
+    BCRn（Breakpoint Control Register）、WVRn（Watchpoint Value Register）、
+    WCRn（Watchpoint Control Register）、DSCR / DBGDSCR_EL1
     unsafe {
-        asm!("mov {0}, %dr7", in(reg) new_val, options(att_syntax));
+        asm!("mov {0}, %dr7", in(reg) new_val, /*options(att_syntax)*/);
     }
+    */
 }
 
 pub fn get_dr7() -> u64 {
-    let out;
+    let out = 0;
     // SAFETY: reading DR7 does not affect memory safety.
-    unsafe { asm!("mov %dr7, {0}", out(reg) out, options(att_syntax)) };
+    /*
+    unsafe { asm!("mov %dr7, {0}", out(reg) out, /*options(att_syntax)*/) };
+    */
     out
 }
 
@@ -217,9 +231,11 @@ pub fn get_dr7() -> u64 {
 /// use of VMGEXIT cannot cause unsafe behavior.
 pub fn raw_vmgexit() {
     // SAFETY: executing VMMCALL does not affect memory safety.
+    /*
     unsafe {
-        asm!("rep; vmmcall", options(att_syntax));
+        asm!("rep; vmmcall", /*options(att_syntax)*/);
     }
+    */
 }
 
 bitflags::bitflags! {
@@ -245,6 +261,8 @@ bitflags::bitflags! {
 /// does not violate memory safety.  Memory safety could be affected if the
 /// page is exposed to a lower VMPL or becomes a VMSA.
 pub unsafe fn rmp_adjust(addr: VirtAddr, flags: RMPFlags, size: PageSize) -> Result<(), SvsmError> {
+    /*
+    arm没有反向映射表rmp
     let rcx: u64 = match size {
         PageSize::Regular => 0,
         PageSize::Huge => 1,
@@ -264,10 +282,10 @@ pub unsafe fn rmp_adjust(addr: VirtAddr, flags: RMPFlags, size: PageSize) -> Res
               .quad (1b)
               .quad (2b)
               .popsection",
-                inout("rax") rax => ret,
-                inout("rcx") rcx => ex,
-                in("rdx") rdx,
-                options(att_syntax));
+                inout("x0") rax => ret,
+                inout("x1") rcx => ex,
+                in("x2") rdx,
+                /*options(att_syntax)*/);
     }
 
     if ex != 0 {
@@ -285,6 +303,8 @@ pub unsafe fn rmp_adjust(addr: VirtAddr, flags: RMPFlags, size: PageSize) -> Res
             unreachable!();
         }
     }
+    */
+    Ok(())
 }
 
 pub fn rmp_revoke_guest_access(vaddr: VirtAddr, size: PageSize) -> Result<(), SvsmError> {

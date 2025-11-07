@@ -397,7 +397,7 @@ mod tests {
         // SAFETY: Safe when function's safety requirement are met.
         unsafe {
             let ret: u8;
-            asm!("inb %dx, %al", in("dx") port, out("al") ret, options(att_syntax));
+            asm!("inb %dx, %al", in("dx") port, out("al") ret, /*/*options(att_syntax)*/*/);
             ret
         }
     }
@@ -406,7 +406,7 @@ mod tests {
         // SAFETY: Accessing testdev does not modify any memory.
         unsafe {
             let ret: u8;
-            asm!("inb $0xe0, %al", out("al") ret, options(att_syntax));
+            asm!("inb $0xe0, %al", out("al") ret, /*/*options(att_syntax)*/*/);
             ret
         }
     }
@@ -416,12 +416,12 @@ mod tests {
     /// Caller must ensure that port access does not affect memory safety.
     unsafe fn outb(port: u16, value: u8) {
         // SAFETY: Safe when function's safety requirement are met.
-        unsafe { asm!("outb %al, %dx", in("al") value, in("dx") port, options(att_syntax)) }
+        unsafe { asm!("outb %al, %dx", in("al") value, in("dx") port, /*/*options(att_syntax)*/*/) }
     }
 
     fn outb_to_testdev_echo(value: u8) {
         // SAFETY: Accessing testdev does not modify any memory.
-        unsafe { asm!("outb %al, $0xe0", in("al") value, options(att_syntax)) }
+        unsafe { asm!("outb %al, $0xe0", in("al") value, /*/*options(att_syntax)*/*/) }
     }
 
     /// # Safety
@@ -431,7 +431,7 @@ mod tests {
         // SAFETY: Safe when function's safety requirement are met.
         unsafe {
             let ret: u16;
-            asm!("inw %dx, %ax", in("dx") port, out("ax") ret, options(att_syntax));
+            asm!("inw %dx, %ax", in("dx") port, out("ax") ret, /*/*options(att_syntax)*/*/);
             ret
         }
     }
@@ -440,7 +440,7 @@ mod tests {
         // SAFETY: Accessing testdev does not modify any memory.
         unsafe {
             let ret: u16;
-            asm!("inw $0xe0, %ax", out("ax") ret, options(att_syntax));
+            asm!("inw $0xe0, %ax", out("ax") ret, /*/*options(att_syntax)*/*/);
             ret
         }
     }
@@ -450,12 +450,12 @@ mod tests {
     /// Caller must ensure that port access does not affect memory safety.
     unsafe fn outw(port: u16, value: u16) {
         // SAFETY: Safe when function's safety requirement are met.
-        unsafe { asm!("outw %ax, %dx", in("ax") value, in("dx") port, options(att_syntax)) }
+        unsafe { asm!("outw %ax, %dx", in("ax") value, in("dx") port, /*options(att_syntax)*/) }
     }
 
     fn outw_to_testdev_echo(value: u16) {
         // SAFETY: Accessing testdev does not modify any memory.
-        unsafe { asm!("outw %ax, $0xe0", in("ax") value, options(att_syntax)) }
+        unsafe { asm!("outw %ax, $0xe0", in("ax") value, /*options(att_syntax)*/) }
     }
 
     /// # Safety
@@ -465,7 +465,7 @@ mod tests {
         // SAFETY: Safe when function's safety requirement are met.
         unsafe {
             let ret: u32;
-            asm!("inl %dx, %eax", in("dx") port, out("eax") ret, options(att_syntax));
+            asm!("inl %dx, %eax", in("dx") port, out("eax") ret, /*options(att_syntax)*/);
             ret
         }
     }
@@ -474,7 +474,7 @@ mod tests {
         // SAFETY: Accessing testdev does not modify any memory.
         unsafe {
             let ret: u32;
-            asm!("inl $0xe0, %eax", out("eax") ret, options(att_syntax));
+            asm!("inl $0xe0, %eax", out("eax") ret, /*options(att_syntax)*/);
             ret
         }
     }
@@ -484,12 +484,12 @@ mod tests {
     /// Caller must ensure that port access does not affect memory safety.
     unsafe fn outl(port: u16, value: u32) {
         // SAFETY: Safe when function's safety requirement are met.
-        unsafe { asm!("outl %eax, %dx", in("eax") value, in("dx") port, options(att_syntax)) }
+        unsafe { asm!("outl %eax, %dx", in("eax") value, in("dx") port, /*options(att_syntax)*/) }
     }
 
     fn outl_to_testdev_echo(value: u32) {
         // SAFETY: Accessing testdev does not modify any memory.
-        unsafe { asm!("outl %eax, $0xe0", in("eax") value, options(att_syntax)) }
+        unsafe { asm!("outl %eax, $0xe0", in("eax") value, /*options(att_syntax)*/) }
     }
 
     /// # Safety
@@ -500,7 +500,7 @@ mod tests {
         // met. Assembly code reads a u16 slice. This is safe because u16 is
         // Send.
         unsafe {
-            asm!("rep outsw", in("dx") port, in("rsi") data.as_ptr(), inout("rcx") data.len() => _, options(att_syntax))
+            asm!("rep outsw", in("dx") port, in("rsi") data.as_ptr(), inout("rcx") data.len() => _, /*options(att_syntax)*/)
         }
     }
 
@@ -511,7 +511,7 @@ mod tests {
         // SAFETY: Port access is safe when function's safety requirement are
         // met. Assembly code reads data to an exclusively owned u16 slice.
         unsafe {
-            asm!("rep insw", in("dx") port, in("rdi") data.as_ptr(), inout("rcx") data.len() => _, options(att_syntax))
+            asm!("rep insw", in("dx") port, in("rdi") data.as_ptr(), inout("rcx") data.len() => _, /*options(att_syntax)*/)
         }
     }
 
@@ -773,7 +773,7 @@ mod tests {
                 "mov (%edx), %eax",
                 out("eax") version,
                 in("edx") address,
-                options(att_syntax)
+                /*options(att_syntax)*/
             )
         });
         assert_eq!(version, EXPECTED_APIC_VERSION_NUMBER);

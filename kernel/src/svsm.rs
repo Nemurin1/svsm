@@ -9,8 +9,10 @@
 
 extern crate alloc;
 
-use bootlib::kernel_launch::KernelLaunchInfo;
+use bootlib::kernel_launch::{KernelLaunchInfo, Stage2LaunchInfo, STAGE2_HEAP_END, STAGE2_HEAP_START};
+use bootlib::platform::SvsmPlatformType;
 use core::arch::global_asm;
+use core::arch::asm;
 use core::panic::PanicInfo;
 use core::slice;
 use cpuarch::snp_cpuid::SnpCpuidTable;
@@ -31,7 +33,7 @@ use svsm::cpu::shadow_stack::{
 use svsm::cpu::smp::start_secondary_cpus;
 use svsm::cpu::sse::sse_init;
 use svsm::debug::gdbstub::svsm_gdbstub::{debug_break, gdbstub_start};
-use svsm::debug::stacktrace::print_stack;
+// use svsm::debug::stacktrace::print_stack;
 use svsm::enable_shadow_stacks;
 use svsm::fs::{initialize_fs, opendir, populate_ram_fs};
 use svsm::hyperv::hyperv_setup;
@@ -40,9 +42,12 @@ use svsm::kernel_region::new_kernel_region;
 use svsm::mm::alloc::{memory_info, print_memory_info, root_mem_init};
 use svsm::mm::memory::init_memory_map;
 use svsm::mm::pagetable::paging_init;
-use svsm::mm::ro_after_init::make_ro_after_init;
+// use svsm::mm::ro_after_init::make_ro_after_init;
 use svsm::mm::virtualrange::virt_log_usage;
 use svsm::mm::{init_kernel_mapping_info, FixedAddressMappingRange};
+use svsm::mm::validate::{
+    init_valid_bitmap_alloc, valid_bitmap_addr,
+};
 use svsm::platform;
 use svsm::platform::{init_capabilities, init_platform_type, SvsmPlatformCell, SVSM_PLATFORM};
 use svsm::requests::request_loop_main;
@@ -60,12 +65,21 @@ use svsm::mm::validate::{init_valid_bitmap_ptr, migrate_valid_bitmap};
 use alloc::string::String;
 use release::COCONUT_VERSION;
 
+use svsm::svsm_arm64::cpu::gicv3::{gicv3_init, gicv3_enable_irq};
+
+// use svsm::stage2::stage2_main;
+
 #[cfg(feature = "attest")]
 use kbs_types::Tee;
 
 extern "C" {
     static bsp_stack: u8;
     static bsp_stack_end: u8;
+}
+
+extern "C" {
+    static kernel_region_phys_start: u64;
+    static kernel_region_phys_end: u64;
 }
 
 /*
@@ -77,50 +91,11 @@ extern "C" {
  * %rdi  Pointer to the KernelLaunchInfo structure
  * %rsi  Pointer to the valid-bitmap from stage2
  */
-global_asm!(
-    r#"
-        .text
-        .section ".startup.text","ax"
-        .code64
-
-        .globl startup_64
-    startup_64:
-        /*
-         * Setup stack.
-         *
-         * bsp_stack is always mapped across all page tables because it
-         * uses the shared PML4E, making it accessible after switching to
-         * the first task's page table.
-         *
-         * See switch_to() for details.
-         */
-        leaq bsp_stack_end(%rip), %rsp
-
-        /* Mark the next stack frame as the bottom frame */
-        xor %rbp, %rbp
-
-        /*
-         * Make sure (%rsp + 8) is 16b-aligned when control is transferred
-         * to svsm_start as required by the C calling convention for x86-64.
-         */
-        call svsm_start
-        int3
-
-        .bss
-
-        .align {PAGE_SIZE}
-        .globl bsp_stack
-    bsp_stack:
-        .fill 8*{PAGE_SIZE}, 1, 0
-        .globl bsp_stack_end
-    bsp_stack_end:
-        "#,
-    PAGE_SIZE = const PAGE_SIZE,
-    options(att_syntax)
-);
+global_asm!(include_str!("start.s"));
 
 static CPUID_PAGE: ImmutAfterInitCell<SnpCpuidTable> = ImmutAfterInitCell::uninit();
 static LAUNCH_INFO: ImmutAfterInitCell<KernelLaunchInfo> = ImmutAfterInitCell::uninit();
+
 
 pub fn memory_init(launch_info: &KernelLaunchInfo) {
     root_mem_init(
@@ -129,6 +104,7 @@ pub fn memory_init(launch_info: &KernelLaunchInfo) {
         launch_info.heap_area_size as usize / PAGE_SIZE,
     );
 }
+
 
 fn boot_stack_info() {
     let bs = this_cpu().get_current_stack();
@@ -147,6 +123,7 @@ fn mapping_info_init(launch_info: &KernelLaunchInfo) {
 /// # Panics
 ///
 /// Panics if the provided address is not aligned to a [`SnpCpuidTable`].
+
 fn init_cpuid_table(addr: VirtAddr) {
     // SAFETY: this is called from the main function for the SVSM and no other
     // CPUs have been brought up, so the pointer cannot be aliased.
@@ -168,19 +145,89 @@ fn init_cpuid_table(addr: VirtAddr) {
     register_cpuid_table(&CPUID_PAGE);
 }
 
-#[no_mangle]
-extern "C" fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
-    let launch_info: KernelLaunchInfo = *li;
-    init_platform_type(launch_info.platform_type);
+fn setup_svsm_early_allocator(heap_start: u64, heap_end: u64) {
+    let vstart = VirtAddr::from(heap_start);
+    let vend = VirtAddr::from(heap_end);
+    let pstart = PhysAddr::from(vstart.bits()); // Identity mapping
+    let nr_pages = (vend - vstart) / PAGE_SIZE;
 
+    root_mem_init(pstart, vstart, nr_pages);
+}
+
+#[no_mangle]
+extern "C" fn svsm_start(/* li: &KernelLaunchInfo, vb_addr: usize */) -> ! {
+    let kernel_start = unsafe { &kernel_region_phys_start as *const u64 as u64 };
+    let kernel_end = unsafe { &kernel_region_phys_end as *const u64 as u64 };
+    let kernel_size: u64 = 4 * 1024 * 1024;
+
+    let linfo = KernelLaunchInfo {
+        kernel_region_phys_start: kernel_start,
+        kernel_region_phys_end: kernel_end,
+        heap_area_phys_start: kernel_end,
+        heap_area_virt_start: kernel_end,
+        heap_area_size: kernel_size,
+        kernel_elf_stage2_virt_start: 0,
+        kernel_elf_stage2_virt_end: 0,
+        kernel_fs_start: 0,
+        kernel_fs_end: 0,
+        stage2_start: 0,
+        stage2_end: 0,
+        cpuid_page: 0,
+        secrets_page: 0,
+        stage2_igvm_params_phys_addr: 0,
+        vtom: 0,
+        debug_serial_port: 0x0900_0000,
+        use_alternate_injection: false,
+        suppress_svsm_interrupts: true,
+        platform_type: SvsmPlatformType::Native,
+        kernel_region_virt_start: 0,
+        stage2_igvm_params_size: 0,
+        igvm_params_phys_addr: 0,
+        igvm_params_virt_addr: 0,
+        };
+
+    let li = &linfo;
+    let launch_info: KernelLaunchInfo = *li;
+
+    init_platform_type(launch_info.platform_type);
+    let mut platform_cell = SvsmPlatformCell::new(li.suppress_svsm_interrupts);
+    let platform = platform_cell.platform_mut();
+
+    let debug_serial_port = li.debug_serial_port;
+    install_console_logger("SVSM").expect("Console logger already initialized");
+    platform
+        .env_setup(debug_serial_port, launch_info.vtom.try_into().unwrap())
+        .expect("Early environment setup failed");
+
+    // 初始化堆
+    setup_svsm_early_allocator(STAGE2_HEAP_START.into(), STAGE2_HEAP_END.into());
+    log::info!("!!!");
+
+    let kernel_base: PhysAddr = kernel_start.into();
+    let kernel_size: usize = 4 * 1024 * 1024;
+
+    let kernel_region = MemoryRegion::<PhysAddr>::new(
+            kernel_base,
+            kernel_size.try_into().unwrap(),
+        );
+
+    init_valid_bitmap_alloc(kernel_region).expect("Failed to allocate valid-bitmap");
+    log::info!("???");
+    
+    log::info!("...");
+    let valid_bitmap = valid_bitmap_addr();
+    log::info!("...");
+    let vb_addr: usize = valid_bitmap.bits();
+    log::info!("...");
     let vb_ptr = core::ptr::NonNull::new(VirtAddr::new(vb_addr).as_mut_ptr::<u64>()).unwrap();
+    log::info!("...");
 
     mapping_info_init(&launch_info);
 
     // SAFETY: we trust the previous stage to pass a valid pointer
     unsafe { init_valid_bitmap_ptr(new_kernel_region(&launch_info), vb_ptr) };
 
-    GLOBAL_GDT.load_selectors();
+    // GLOBAL_GDT.load_selectors();
 
     let mut early_idt = [IdtEntry::default(); EARLY_IDT_ENTRIES];
     let mut idt = IDT::new(&mut early_idt);
@@ -192,14 +239,14 @@ extern "C" fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
 
     // Capture the debug serial port before the launch info disappears from
     // the address space.
-    let debug_serial_port = li.debug_serial_port;
+    // let debug_serial_port = li.debug_serial_port;
 
     LAUNCH_INFO
         .init_from_ref(li)
         .expect("Already initialized launch info");
 
-    let mut platform_cell = SvsmPlatformCell::new(li.suppress_svsm_interrupts);
-    let platform = platform_cell.platform_mut();
+    // let mut platform_cell = SvsmPlatformCell::new(li.suppress_svsm_interrupts);
+    // let platform = platform_cell.platform_mut();
 
     init_cpuid_table(VirtAddr::from(launch_info.cpuid_page));
 
@@ -215,11 +262,6 @@ extern "C" fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
     cr0_init();
     determine_cet_support(platform);
     cr4_init(platform);
-
-    install_console_logger("SVSM").expect("Console logger already initialized");
-    platform
-        .env_setup(debug_serial_port, launch_info.vtom.try_into().unwrap())
-        .expect("Early environment setup failed");
 
     memory_init(&launch_info);
     migrate_valid_bitmap().expect("Failed to migrate valid-bitmap");
@@ -248,6 +290,7 @@ extern "C" fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
     // SAFETY: this is the first CPU, so there can be no other dependencies
     // on multi-threaded access to the per-cpu areas.
     let percpu_shared = unsafe { PERCPU_AREAS.create_new(0) };
+    /*
     let bsp_percpu = PerCpu::alloc(percpu_shared).expect("Failed to allocate BSP per-cpu data");
 
     bsp_percpu
@@ -262,19 +305,23 @@ extern "C" fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
         VirtAddr::from(&raw const bsp_stack),
         VirtAddr::from(&raw const bsp_stack_end),
     ));
+    */
+    // idt_init().expect("Failed to allocate IDT");
 
-    idt_init().expect("Failed to allocate IDT");
-
+    /* 
     if is_cet_ss_supported() {
         enable_shadow_stacks!(bsp_percpu);
     }
+    */
 
     initialize_fs();
 
     // Idle task must be allocated after PerCPU data is mapped
+    /*
     bsp_percpu
         .setup_idle_task(svsm_main)
         .expect("Failed to allocate idle task for BSP");
+    */
 
     platform
         .env_setup_late(debug_serial_port)
@@ -286,7 +333,7 @@ extern "C" fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
     print_memory_info(&mem_info);
 
     boot_stack_info();
-    shadow_stack_info();
+    // shadow_stack_info();
 
     platform
         .configure_alternate_injection(launch_info.use_alternate_injection)
@@ -294,7 +341,7 @@ extern "C" fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
 
     platform_cell.global_init();
 
-    sse_init();
+    // sse_init();
 
     // SAFETY: there is no current task running on this processor yet, so
     // initializing the scheduler is safe.
@@ -305,15 +352,25 @@ extern "C" fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
     unreachable!("SVSM entry point terminated unexpectedly");
 }
 
+
+#[no_mangle]
 pub extern "C" fn svsm_main(cpu_index: usize) {
     debug_assert_eq!(cpu_index, 0);
 
+    // let launch_info: Stage2LaunchInfo = Default::default();
+
+    // stage2_main(&launch_info);
+
     // If required, the GDB stub can be started earlier, just after the console
     // is initialised in svsm_start() above.
-    gdbstub_start(&**SVSM_PLATFORM).expect("Could not start GDB stub");
+    // gdbstub_start(&**SVSM_PLATFORM).expect("Could not start GDB stub");
     // Uncomment the line below if you want to wait for
     // a remote GDB connection
     //debug_break();
+    log::info!("test info");
+
+    svsm_start();
+
 
     SVSM_PLATFORM
         .env_setup_svsm()
@@ -330,22 +387,22 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
 
     let config = SvsmConfig::new(*SVSM_PLATFORM, igvm_params);
 
-    init_memory_map(&config, &LAUNCH_INFO).expect("Failed to init guest memory map");
+    // init_memory_map(&config, &LAUNCH_INFO).expect("Failed to init guest memory map");
 
     populate_ram_fs(LAUNCH_INFO.kernel_fs_start, LAUNCH_INFO.kernel_fs_end)
         .expect("Failed to unpack FS archive");
 
     init_capabilities();
 
-    let cpus = config.load_cpu_info().expect("Failed to load ACPI tables");
+    // let cpus = config.load_cpu_info().expect("Failed to load ACPI tables");
 
-    start_secondary_cpus(&**SVSM_PLATFORM, &cpus);
+    // start_secondary_cpus(&**SVSM_PLATFORM, &cpus);
 
     // Make ro_after_init section read-only
-    make_ro_after_init().expect("Failed to make ro_after_init region read-only");
+    // make_ro_after_init().expect("Failed to make ro_after_init region read-only");
 
-    invalidate_early_boot_memory(&**SVSM_PLATFORM, &config, launch_info)
-        .expect("Failed to invalidate early boot memory");
+    // invalidate_early_boot_memory(&**SVSM_PLATFORM, &config, launch_info)
+    //     .expect("Failed to invalidate early boot memory");
 
     if let Err(e) = SVSM_PLATFORM.prepare_fw(&config, new_kernel_region(&LAUNCH_INFO)) {
         panic!("Failed to prepare guest FW: {e:#?}");
@@ -385,6 +442,8 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
         Err(e) => log::info!("Failed to launch /init: {e:?}"),
     }
 
+    // 到此处svsm基本逻辑就成功运行。
+
     // Start request processing on this CPU if required.
     if SVSM_PLATFORM.start_svsm_request_loop() {
         start_kernel_task(request_loop_main, 0, String::from("request-loop on CPU 0"))
@@ -394,12 +453,55 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
     cpu_idle_loop(cpu_index);
 }
 
+#[no_mangle]
+pub extern "C" fn not_main() {
+    // ...
+
+    // let mut writer = Writer{};
+
+    // write!(writer, "The numbers are {} and {} \n", 42, 1.0/3.0).unwrap();
+
+    unsafe {
+        // Initialize GICv3
+        gicv3_init();
+        
+        // Example: enable a plausible interrupt ID for testing.
+        // Choose an interrupt ID that QEMU generates (for virt machine,
+        // Example UART0 is typically at ID 33 in some setups; you may adjust).
+        // We enable ID 33 here as a demo; if no source asserts it, you won't see IRQ.
+        gicv3_enable_irq(33);
+    }
+
+    // Initialize MMU
+
+
+    // Enter svsm_main and load guest kernel
+    // svsm_main();
+
+    // Enable interrupts in PSTATE (clear I bit)
+    unsafe {
+        asm!("msr DAIFCLR, #2"); // enable IRQ only
+    }
+
+    svsm_main(0);
+    unsafe{
+      loop {
+        // low-power wait; interrupts will preempt into vector table
+        asm!("wfi");
+      }
+    }
+
+  // ...
+}
+
 #[panic_handler]
 fn panic(info: &PanicInfo<'_>) -> ! {
+    /*
     secrets_page_mut().clear_vmpck(0);
     secrets_page_mut().clear_vmpck(1);
     secrets_page_mut().clear_vmpck(2);
     secrets_page_mut().clear_vmpck(3);
+    */
 
     if let Some(cpu) = try_this_cpu() {
         log::error!(
@@ -412,7 +514,7 @@ fn panic(info: &PanicInfo<'_>) -> ! {
     }
     log::error!("Info: {}", info);
 
-    print_stack(3);
+    // print_stack(3);
 
     loop {
         debug_break();

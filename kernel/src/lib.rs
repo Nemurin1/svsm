@@ -40,7 +40,7 @@ pub mod sev;
 pub mod svsm_paging;
 pub mod syscall;
 pub mod task;
-pub mod tdx;
+// pub mod tdx;
 pub mod types;
 pub mod utils;
 #[cfg(feature = "virtio-drivers")]
@@ -48,6 +48,8 @@ pub mod virtio;
 pub mod vmm;
 #[cfg(all(feature = "vtpm", not(test)))]
 pub mod vtpm;
+// pub mod stage2;
+pub mod svsm_arm64;
 
 #[test]
 fn test_nop() {}

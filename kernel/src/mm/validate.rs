@@ -41,6 +41,7 @@ pub unsafe fn init_valid_bitmap_ptr(region: MemoryRegion<PhysAddr>, raw: NonNull
 
 pub fn init_valid_bitmap_alloc(region: MemoryRegion<PhysAddr>) -> Result<(), SvsmError> {
     let len = bitmap_elems(region);
+    log::info!("{} {}", len, region);
     let bitmap = PageBox::try_new_slice(0u64, len)?;
     *VALID_BITMAP.lock() = Some(ValidBitmap::new(region, bitmap));
 
@@ -129,6 +130,7 @@ impl ValidBitmap {
     }
 
     fn bitmap_addr(&self) -> PhysAddr {
+        log::info!("@@@");
         virt_to_phys(self.bitmap.vaddr())
     }
 

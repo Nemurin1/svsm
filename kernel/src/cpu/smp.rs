@@ -95,6 +95,8 @@ extern "C" {
     fn start_ap_indirect();
 }
 
+/*
+BSP启动后引导AP启动的汇编代码，我们的单CPU环境不需要
 global_asm!(
     r#"
         .globl start_ap_indirect
@@ -145,7 +147,14 @@ global_asm!(
         int3
         "#,
     LME = const EFERFlags::LME.bits(),
-    options(att_syntax)
+);
+*/
+global_asm!(
+    r#"
+        .globl start_ap_indirect
+    start_ap_indirect:
+        nop
+        "#,
 );
 
 pub fn create_ap_start_context(

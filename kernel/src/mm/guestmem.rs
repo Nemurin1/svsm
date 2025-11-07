@@ -18,6 +18,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::arch::asm;
 use core::ffi::c_char;
+use core::ptr;
 use core::mem::{size_of, MaybeUninit};
 use core::ptr::{with_exposed_provenance, with_exposed_provenance_mut};
 use syscall::PATH_MAX;
@@ -38,6 +39,10 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 /// Any safety requirements for accessing raw pointers apply here as well.
 #[inline]
 pub unsafe fn read_u8(v: VirtAddr) -> Result<u8, SvsmError> {
+    /*
+    x86 版本使用内联 asm + .pushsection "__exception_table" 的方式把访存故障映
+    射到“回退标签”，从而在内核/裸机环境下把内存访问的异常转换成返回Err(SvsmError::Fault)
+    的行为。
     let mut rcx: u64;
     let mut val: u64;
 
@@ -53,9 +58,9 @@ pub unsafe fn read_u8(v: VirtAddr) -> Result<u8, SvsmError> {
              ".quad (2b)",
              ".popsection",
                 in(reg) v.bits(),
-                out("rax") val,
-                out("rcx") rcx,
-                options(att_syntax, nostack));
+                out("x0") val,
+                out("x2") rcx,
+                /* options(att_syntax, nostack) */);
     }
 
     let ret: u8 = (val & 0xff) as u8;
@@ -63,6 +68,13 @@ pub unsafe fn read_u8(v: VirtAddr) -> Result<u8, SvsmError> {
         Ok(ret)
     } else {
         Err(SvsmError::Fault)
+    }
+    */
+    unsafe{
+        let p = v.as_ptr::<u8>();
+        // SAFETY: caller ensures v is valid; we use volatile read to force memory access.
+        let val = ptr::read_volatile(p);
+        Ok(val)
     }
 }
 
@@ -79,6 +91,7 @@ pub unsafe fn read_u8(v: VirtAddr) -> Result<u8, SvsmError> {
 /// with the appropriate write permissions.
 #[inline]
 pub unsafe fn write_u8(v: VirtAddr, val: u8) -> Result<(), SvsmError> {
+    /*
     let mut rcx: u64;
 
     // SAFETY: Assembly writes to virtual address, safe when function's safety
@@ -93,15 +106,22 @@ pub unsafe fn write_u8(v: VirtAddr, val: u8) -> Result<(), SvsmError> {
              ".quad (2b)",
              ".popsection",
                 in(reg) v.bits(),
-                in("rax") val as u64,
-                out("rcx") rcx,
-                options(att_syntax, nostack));
+                in("x0") val as u64,
+                out("x2") rcx,
+                /* options(att_syntax, nostack) */);
     }
 
     if rcx == 0 {
         Ok(())
     } else {
         Err(SvsmError::Fault)
+    }
+    */
+    unsafe{
+        let p = v.as_mut_ptr::<u8>();
+        // SAFETY: caller ensures v is valid for write; use volatile write.
+        ptr::write_volatile(p, val);
+        Ok(())
     }
 }
 
@@ -121,6 +141,7 @@ pub unsafe fn write_u8(v: VirtAddr, val: u8) -> Result<(), SvsmError> {
 #[expect(dead_code)]
 #[inline]
 unsafe fn read_u16(v: VirtAddr) -> Result<u16, SvsmError> {
+    /*
     let mut rcx: u64;
     let mut val: u64;
 
@@ -137,8 +158,8 @@ unsafe fn read_u16(v: VirtAddr) -> Result<u16, SvsmError> {
              ".popsection",
                 in(reg) v.bits(),
                 out(reg) val,
-                out("rcx") rcx,
-                options(att_syntax, nostack));
+                out("x2") rcx,
+                /* options(att_syntax, nostack) */);
     }
 
     let ret: u16 = (val & 0xffff) as u16;
@@ -146,6 +167,20 @@ unsafe fn read_u16(v: VirtAddr) -> Result<u16, SvsmError> {
         Ok(ret)
     } else {
         Err(SvsmError::Fault)
+    }
+    */
+    unsafe{
+        let p = v.as_ptr::<u16>();
+        // Use unaligned-safe byte read if address may be unaligned
+        let val = if (p as usize) & 1 == 0 {
+            ptr::read_volatile(p)
+        } else {
+            // handle unaligned by reading bytes
+            let b0 = ptr::read_volatile(v.as_ptr::<u8>());
+            let b1 = ptr::read_volatile(unsafe { v.as_ptr::<u8>().add(1) });
+           u16::from_le_bytes([b0, b1])
+        };
+        Ok(val)
     }
 }
 
@@ -165,6 +200,7 @@ unsafe fn read_u16(v: VirtAddr) -> Result<u16, SvsmError> {
 #[expect(dead_code)]
 #[inline]
 unsafe fn read_u32(v: VirtAddr) -> Result<u32, SvsmError> {
+    /*
     let mut rcx: u64;
     let mut val: u64;
 
@@ -181,8 +217,8 @@ unsafe fn read_u32(v: VirtAddr) -> Result<u32, SvsmError> {
              ".popsection",
                 in(reg) v.bits(),
                 out(reg) val,
-                out("rcx") rcx,
-                options(att_syntax, nostack));
+                out("x2") rcx,
+                /* options(att_syntax, nostack) */);
     }
 
     let ret: u32 = (val & 0xffffffff) as u32;
@@ -190,6 +226,21 @@ unsafe fn read_u32(v: VirtAddr) -> Result<u32, SvsmError> {
         Ok(ret)
     } else {
         Err(SvsmError::Fault)
+    }
+    */
+    unsafe{
+        let p = v.as_ptr::<u32>();
+        let val = if (p as usize) & 3 == 0 {
+            ptr::read_volatile(p)
+        } else {
+            // unaligned: read byte-wise (le)
+            let mut bytes = [0u8; 4];
+            for i in 0..4 {
+                bytes[i] = ptr::read_volatile(unsafe { v.as_ptr::<u8>().add(i) });
+            }
+            u32::from_le_bytes(bytes)
+        };
+        Ok(val)
     }
 }
 
@@ -209,6 +260,7 @@ unsafe fn read_u32(v: VirtAddr) -> Result<u32, SvsmError> {
 #[expect(dead_code)]
 #[inline]
 unsafe fn read_u64(v: VirtAddr) -> Result<u64, SvsmError> {
+    /*
     let mut rcx: u64;
     let mut val: u64;
 
@@ -225,15 +277,30 @@ unsafe fn read_u64(v: VirtAddr) -> Result<u64, SvsmError> {
              ".popsection",
                 in(reg) v.bits(),
                 out(reg) val,
-                out("rcx") rcx,
-                options(att_syntax, nostack));
+                out("x2") rcx,
+                /* options(att_syntax, nostack) */);
     }
     if rcx == 0 {
         Ok(val)
     } else {
         Err(SvsmError::Fault)
     }
-}
+    */
+    unsafe{
+        let p = v.as_ptr::<u64>();
+        let val = if (p as usize) & 7 == 0 {
+            ptr::read_volatile(p)
+        } else {
+            // unaligned: read byte-wise (le)
+            let mut bytes = [0u8; 8];
+            for i in 0..8 {
+                bytes[i] = ptr::read_volatile(unsafe { v.as_ptr::<u8>().add(i) });
+            }
+            u64::from_le_bytes(bytes)
+        };
+        Ok(val)
+        }
+    }
 
 /// Copies `size` number of bytes from `src` to `dst`, catching any fault that
 /// might happen during the operation.
@@ -242,7 +309,8 @@ unsafe fn read_u64(v: VirtAddr) -> Result<u64, SvsmError> {
 ///
 /// The caller must make sure that writing to `dst` does not harm memory safety.
 #[inline]
-unsafe fn copy_bytes(src: *const u8, dst: *mut u8, size: usize) -> Result<(), SvsmError> {
+unsafe fn copy_bytes(src: *const u8, dst: *mut u8, mut size: usize) -> Result<(), SvsmError> {
+    /*
     let mut rcx: u64;
 
     // SAFETY: Safe as long as the function's safety requirements are met. Any
@@ -256,16 +324,41 @@ unsafe fn copy_bytes(src: *const u8, dst: *mut u8, size: usize) -> Result<(), Sv
              .quad (1b)
              .quad (2b)
              .popsection",
-                inout("rsi") src.expose_provenance() => _,
-                inout("rdi") dst.expose_provenance() => _,
-                inout("rcx") size => rcx,
-                options(att_syntax, nostack));
+                inout("x4") src.expose_provenance() => _,
+                inout("x3") dst.expose_provenance() => _,
+                inout("x2") size => rcx,
+                /* options(att_syntax, nostack) */);
     }
 
     if rcx == 0 {
         Ok(())
     } else {
         Err(SvsmError::Fault)
+    }
+    */
+    // Use 64-bit block copies for speed, falling back to bytes.
+    unsafe{
+        let mut s = src;
+        let mut d = dst;
+
+        // Align to u64 for block copies when possible
+        while size >= 8 {
+            let v = ptr::read_volatile(s as *const u64);
+            ptr::write_volatile(d as *mut u64, v);
+            s = s.add(8);
+            d = d.add(8);
+            size -= 8;
+        }
+
+        while size > 0 {
+            let v = ptr::read_volatile(s);
+            ptr::write_volatile(d, v);
+            s = s.add(1);
+            d = d.add(1);
+            size -= 1;
+        }
+
+        Ok(())
     }
 }
 
@@ -474,6 +567,7 @@ impl UserPtr<c_char> {
             let char_result = current_ptr.read()?;
             match char_result {
                 0 => return String::from_utf8(buffer).map_err(|_| SvsmError::InvalidUtf8),
+                #[allow(trivial_numeric_casts)]
                 c => buffer.push(c as u8),
             }
         }

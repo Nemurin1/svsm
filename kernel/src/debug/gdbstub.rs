@@ -151,7 +151,7 @@ pub mod svsm_gdbstub {
                     in("rdi") &mut task_ctx,
                     in("rdx") &mut gdb_state,
                     in("rax") GDB_STACK_TOP.expose_provenance(),
-                    options(att_syntax));
+                    /*options(att_syntax)*/);
             }
 
             ctx.frame.rip = task_ctx.ret_addr as usize;
@@ -251,7 +251,7 @@ pub mod svsm_gdbstub {
                 unsafe {
                     asm!("mov %rax, %cr3",
                          in("rax") self.cr3,
-                         options(att_syntax));
+                         /*options(att_syntax)*/);
                 }
             }
         }

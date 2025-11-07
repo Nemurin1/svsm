@@ -684,6 +684,7 @@ impl PageTable {
     /// Some(PageFrame) if the virtual address is valid.
     /// None if the virtual address is not valid.
     pub fn virt_to_frame(vaddr: VirtAddr) -> Option<PageFrame> {
+        log::info!("%%%");
         // Calculate the virtual addresses of each level of the paging
         // hierarchy in the self-map.
         let pte_addr = Self::get_pte_address(vaddr);

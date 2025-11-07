@@ -67,6 +67,8 @@ macro_rules! enable_shadow_stacks {
 
         // SAFETY: This assembly enables shadow-stacks and does not impact Rust
         // memory safety.
+        /*
+        arm没有影子栈功能，PAC（指针验证）也许是替代方法
         unsafe {
             asm!(
                 // Enable shadow stacks.
@@ -75,14 +77,24 @@ macro_rules! enable_shadow_stacks {
                 "wrssq [{token_addr}], {token_val}",
                 // Load the shadow stack.
                 "rstorssp [{token_addr}]",
-                in("ecx") S_CET,
-                in("edx") 0,
-                in("eax") SCetFlags::SH_STK_EN.bits() | SCetFlags::WR_SHSTK_EN.bits(),
+                in("x2") S_CET,
+                in("x3") 0,
+                in("x0") SCetFlags::SH_STK_EN.bits() | SCetFlags::WR_SHSTK_EN.bits(),
                 token_addr = in(reg) token_addr.bits(),
                 token_val = in(reg) token_addr.bits() + 8 + MODE_64BIT,
                 options(nostack, readonly),
             );
+            asm!(
+                // 启用指针认证（通常在系统初始化中由 SCTLR_ELx 设置）
+                // 这里用 PACIASP 模拟安全栈启用过程
+                "paciasp",      // 生成并存储返回地址签名
+                "mov x0, {token}",  // 存储 token (逻辑上对应影子栈 token)
+                "autiasp",      // 验证返回地址
+                token = in(reg) token_addr.bits(),
+                options(nostack, preserves_flags),
+            );
         }
+        */
     }};
 }
 

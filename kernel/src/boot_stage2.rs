@@ -14,7 +14,7 @@ use svsm::{
         msr::{EFER, SEV_STATUS},
     },
     mm::PGTABLE_LVL3_IDX_PTE_SELFMAP,
-    platform::tdp::TdMailbox,
+    // platform::tdp::TdMailbox,
     types::PAGE_SIZE,
 };
 
@@ -249,7 +249,7 @@ global_asm!(
         test %esi, %esi
         jz .Lbsp_main
 
-        movl ${MAILBOX_VPIDX_ADDR}, %eax
+        /* movl ${MAILBOX_VPIDX_ADDR}, %eax */
 
         /*
          * The following wait-for-signal code must be written in asm because
@@ -342,10 +342,10 @@ global_asm!(
     LME = const EFERFlags::LME.bits(),
     NXE = const EFERFlags::NXE.bits(),
     SEV_STATUS = const SEV_STATUS,
-    MAILBOX_VPIDX_ADDR = const MAILBOX_ADDR + offset_of!(TdMailbox, vcpu_index) as u32,
+    // MAILBOX_VPIDX_ADDR = const MAILBOX_ADDR + offset_of!(TdMailbox, vcpu_index) as u32,
     AP_CTXT_ADDR = const AP_CTXT_ADDR,
     AP_STARTUP_RIP_ADDR = const AP_CTXT_ADDR + offset_of!(ApStartContext, initial_rip) as u32,
-    options(att_syntax)
+    /*options(att_syntax)*/
 );
 
 // Provide dummy symbols in stage2 which might be required by code shared

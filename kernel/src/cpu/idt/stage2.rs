@@ -105,6 +105,10 @@ extern "C" {
     static stage2_idt_handler_array_no_ghcb: u8;
 }
 
+// 不理解实现了完整的异常处理汇编代码svsm_entry.s为什么又写了一段同样的处理代码，
+// 可能是在stage2早期idt未初始化完成时的异常处理逻辑
+// 反正对我们都没用
+/*
 global_asm!(
     r#"
         .text
@@ -133,7 +137,7 @@ global_asm!(
 
         .pushsection .entry.text, "ax"
 
-         /* Early tage 2 handler array setup */
+         /* Early stage 2 handler array setup */
     push_regs_no_ghcb:
         pushq   %rbx
         pushq   %rcx
@@ -219,5 +223,28 @@ global_asm!(
         i = i + 1
         .endr
     "#,
-    options(att_syntax)
+    // options(att_syntax)
+);
+*/
+global_asm!(
+    r#"
+        .text
+
+        .globl stage2_idt_handler_array_no_ghcb
+    stage2_idt_handler_array_no_ghcb:
+        nop
+
+        .pushsection .entry.text, "ax"
+
+        /* Stage 2 handler array setup */
+    push_regs_stage2:
+        nop
+
+        .popsection
+
+        .globl stage2_idt_handler_array
+    stage2_idt_handler_array:
+        nop
+    "#,
+    // options(att_syntax)
 );

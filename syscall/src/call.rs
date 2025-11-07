@@ -24,6 +24,7 @@ macro_rules! syscall {
                 // The caller must ensure that the syscall number and arguments
                 // are valid.
                 unsafe {
+                    /*
                     asm!(
                         "int 0x80",
                         inout("rax") ret,
@@ -46,6 +47,7 @@ macro_rules! syscall {
                         out("r11") _,
                         options(nostack),
                     );
+                    */
                 }
 
                 if ret > (u64::MAX - u64::from(u16::MAX)) {
