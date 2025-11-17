@@ -12,7 +12,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes};
 pub const SIPI_STUB_GPA: u32 = 0xF000;
 
 // The first 640 KB of RAM (low memory)
-pub const LOWMEM_END: u32 = 0xA0000;
+pub const LOWMEM_END: u32 = 0x40000;
 
 // pub const STAGE2_HEAP_START: u32 = 0x10000; // 64 KB
 // pub const STAGE2_HEAP_END: u32 = LOWMEM_END; // 640 KB

@@ -1,15 +1,3 @@
-# ================================
-#   Toolchain: AArch64 Cross
-# ================================
-CROSS   ?= aarch64-linux-gnu
-CC      := $(CROSS)-gcc
-AR      := $(CROSS)-ar
-RANLIB  := $(CROSS)-ranlib
-CFLAGS  += -march=armv8-a
-
-# ================================
-#   Build Flags
-# ================================
 ifdef RELEASE
 OPENSSL_CONFIG_TYPE = --release
 TCGTPM_CFLAGS = -O3 -DDEBUG=NO
@@ -40,34 +28,26 @@ LIBS = $(LIBCRT) $(LIBCRYPTO) $(LIBTPM) $(LIBPLATFORM)
 
 OUT_DIR ?= $(CWD)
 
-# ================================
-#   Final Output
-# ================================
 all: $(OUT_DIR)/libtcgtpm.a
 
 $(OUT_DIR)/libtcgtpm.a: $(LIBS)
 	rm -f $@
-	$(AR) rcs $@ $^
+	# ar rcsTPD $@ $^
+	ar rcs $@ $^
 
 .PHONY: $(LIBCRT)
 
-# ================================
-#   libcrt (AArch64 cross-compile)
-# ================================
+# libcrt
 $(LIBCRT):
-	$(MAKE) -C $(LIBCRT_DIR) CC=$(CC) AR=$(AR) RANLIB=$(RANLIB)
+	$(MAKE) -C $(LIBCRT_DIR)
 
-# ================================
-#   OpenSSL (AArch64 cross-compile)
-# ================================
+# openssl
 $(LIBCRYPTO): $(OPENSSL_MAKEFILE) $(LIBCRT)
-	$(MAKE) -C $(OPENSSL_DIR) CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) -j$$(nproc)
+	$(MAKE) -C $(OPENSSL_DIR) -j$$(nproc)
 
 $(OPENSSL_MAKEFILE):
 	(cd $(OPENSSL_DIR) && \
 		./Configure \
-			linux-aarch64 \
-			--cross-compile-prefix=$(CROSS)- \
 			--config=$(DEPS_DIR)/openssl_svsm.conf \
 			--api=1.1.1 \
 			SVSM \
@@ -166,9 +146,13 @@ $(OPENSSL_MAKEFILE):
 			-I$(LIBCRT_DIR)/include \
 			-Wl,rpath=$(LIBCRT_DIR) -lcrt)
 
-# ================================
-#   TPM 2.0 Reference Implementation
-# ================================
+# tcgtpm
+$(LIBTPM): $(TCGTPM_MAKEFILE) $(LIBCRYPTO)
+	$(MAKE) -j$$(nproc) -C $(TCGTPM_DIR) $(LIBTPM_A)
+
+$(LIBPLATFORM): $(TCGTPM_MAKEFILE) $(LIBCRYPTO)
+	$(MAKE) -j$$(nproc) -C $(TCGTPM_DIR) $(LIBPLATFORM_A)
+
 TCGTPM_CFLAGS += -static -nostdinc -fno-stack-protector -fPIE -mno-sse -mno-red-zone
 TCGTPM_CFLAGS += -DFILE_BACKED_NV=NO
 TCGTPM_CFLAGS += -I$(LIBCRT_DIR)/include
@@ -176,28 +160,19 @@ TCGTPM_CFLAGS += -I$(OPENSSL_DIR)/include
 
 TCGTPM_EXTRA_CFLAGS = -I $(DEPS_DIR)/TpmConfiguration
 
-$(LIBTPM): $(TCGTPM_MAKEFILE) $(LIBCRYPTO)
-	$(MAKE) -j$$(nproc) -C $(TCGTPM_DIR) $(LIBTPM_A) CC=$(CC) AR=$(AR) RANLIB=$(RANLIB)
-
-$(LIBPLATFORM): $(TCGTPM_MAKEFILE) $(LIBCRYPTO)
-	$(MAKE) -j$$(nproc) -C $(TCGTPM_DIR) $(LIBPLATFORM_A) CC=$(CC) AR=$(AR) RANLIB=$(RANLIB)
-
+# Configure the TPM 2.0 Reference Implementation and remove the pthread requirement.
+# In fact, pthread is required only in the TPM simulator, but we
+# are not building the simulator.
 $(TCGTPM_MAKEFILE):
 	(cd $(TCGTPM_DIR) && \
 		./bootstrap && \
 		./configure \
-			--host=$(CROSS) \
-			EXTRA_CFLAGS="$(TCGTPM_EXTRA_CFLAGS)" \
-			CFLAGS="$(TCGTPM_CFLAGS)" \
-			CC=$(CC) \
-			AR=$(AR) \
-			RANLIB=$(RANLIB) \
+			--disable-pthread \
+			EXTRA_CFLAGS="${TCGTPM_EXTRA_CFLAGS}" \
+			CFLAGS="${TCGTPM_CFLAGS}" \
 			LIBCRYPTO_LIBS="$(LIBCRT) $(LIBCRYPTO)" \
-			LIBCRYPTO_CFLAGS="$(TCGTPM_CFLAGS)")
+			LIBCRYPTO_CFLAGS="${TCGTPM_CFLAGS}")
 
-# ================================
-#   Cleaning
-# ================================
 clean: $(OPENSSL_MAKEFILE) $(TCGTPM_MAKEFILE)
 	make -C $(LIBCRT_DIR) clean
 	make -C $(OPENSSL_DIR) clean
@@ -209,4 +184,3 @@ distclean: clean
 	rm -f $(TCGTPM_MAKEFILE)
 
 .PHONY: all clean distclean
-

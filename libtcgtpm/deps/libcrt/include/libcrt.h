@@ -229,8 +229,9 @@ time_t mktime(struct tm *tm);
 
 extern int timezone;
 
+#ifdef __x86_64__
 #define DECLARE_ARGS(val, low, high)	unsigned long low, high
-#define EAX_EDX_VAL(val, low, high)	((low) | (high) << 32)
+#define EAX_EDX_VAL(val, low, high)	((low) | ((unsigned long long)(high) << 32))
 #define EAX_EDX_RET(val, low, high)	"=a" (low), "=d" (high)
 
 static inline unsigned long long rdtsc(void)
@@ -239,6 +240,20 @@ static inline unsigned long long rdtsc(void)
 	asm volatile("rdtsc" : EAX_EDX_RET(val, low, high));
 	return EAX_EDX_VAL(val, low, high);
 }
+
+#elif defined(__aarch64__)
+
+static inline unsigned long long rdtsc(void)
+{
+	unsigned long long cnt;
+	// cntvct_el0：Virtual Count Register，相当于 x86 的 TSC
+	asm volatile("mrs %0, cntvct_el0" : "=r"(cnt));
+	return cnt;
+}
+
+#else
+#error "Unsupported architecture: rdtsc() not implemented"
+#endif
 
 // inttypes.h
 

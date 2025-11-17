@@ -44,7 +44,11 @@ show:
 
 .PHONY: build
 build:
-	cargo build --target aarch64-unknown-none-softfloat
+	cargo build --target aarch64-unknown-none-softfloat 
+	
+.PHONY: tpm
+tpm:
+	cargo build --target aarch64-unknown-none-softfloat --features vtpm
 
 .PHONY: debug
 debug:

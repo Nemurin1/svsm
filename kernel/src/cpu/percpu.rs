@@ -604,7 +604,8 @@ impl PerCpu {
     }
 
     pub fn get_cpu_index(&self) -> usize {
-        self.shared.cpu_index()
+        // self.shared.cpu_index()
+        0
     }
 
     pub fn get_apic_id(&self) -> u32 {

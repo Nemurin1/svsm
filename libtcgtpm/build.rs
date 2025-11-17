@@ -48,8 +48,17 @@ fn main() {
         .unwrap_or_else(|_| panic!("Unable to write bindings.rs"));
 
     // Tell cargo to link libtcgtpm and where to find it.
-    println!("cargo:rustc-link-search={out_dir}");
-    println!("cargo:rustc-link-lib=tcgtpm");
+    // println!("cargo:rustc-link-search={out_dir}");
+    // println!("cargo:rustc-link-lib=tcgtpm");
+    println!("cargo:rustc-link-search=libtcgtpm/deps/libcrt");
+    println!("cargo:rustc-link-search=libtcgtpm/deps/openssl");
+    println!("cargo:rustc-link-search=libtcgtpm/deps/tpm-20-ref/TPMCmd/Platform/src");
+    println!("cargo:rustc-link-search=libtcgtpm/deps/tpm-20-ref/TPMCmd/tpm/src");
+
+    println!("cargo:rustc-link-lib=crt");
+    println!("cargo:rustc-link-lib=crypto");
+    println!("cargo:rustc-link-lib=tpm");
+    println!("cargo:rustc-link-lib=platform");
 
     // Tell cargo not to rerun the build-script unless anything in this
     // directory changes.

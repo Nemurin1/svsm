@@ -17,7 +17,7 @@ use crate::utils::MemoryRegion;
 use alloc::vec::Vec;
 use cpuarch::vmsa::VMSA;
 
-use bootlib::igvm_params::{IgvmGuestContext, IgvmParamBlock, IgvmParamPage};
+use bootlib::igvm_params::{IgvmGuestContext, IgvmParamBlock, IgvmParamBlockFwInfo, IgvmParamBlockFwMem, IgvmParamPage};
 use bootlib::kernel_launch::LOWMEM_END;
 use core::mem::size_of;
 use core::slice;
@@ -33,11 +33,11 @@ pub struct IgvmMemoryMap {
 
 #[derive(Clone, Debug)]
 pub struct IgvmParams<'a> {
-    igvm_param_block: &'a IgvmParamBlock,
-    igvm_param_page: &'a IgvmParamPage,
-    igvm_memory_map: &'a IgvmMemoryMap,
-    igvm_madt: Option<&'a [u8]>,
-    igvm_guest_context: Option<&'a IgvmGuestContext>,
+    pub igvm_param_block: &'a IgvmParamBlock,
+    pub igvm_param_page: &'a IgvmParamPage,
+    pub igvm_memory_map: &'a IgvmMemoryMap,
+    pub igvm_madt: Option<&'a [u8]>,
+    pub igvm_guest_context: Option<&'a IgvmGuestContext>,
 }
 
 impl IgvmParams<'_> {
@@ -73,6 +73,77 @@ impl IgvmParams<'_> {
             igvm_memory_map: memory_map,
             igvm_madt: madt,
             igvm_guest_context: guest_context,
+        })
+    }
+
+    pub fn new_empty() -> Result<Self, SvsmError> {
+        static FWMEM: IgvmParamBlockFwMem = IgvmParamBlockFwMem {
+            base: 0,
+            size: 0,
+        };
+
+        static FIRMWARE: IgvmParamBlockFwInfo = IgvmParamBlockFwInfo {
+            start: 0,
+            size: 0,
+            in_low_memory: 0,
+            _reserved: [0; 7],
+            secrets_page: 0,
+            caa_page: 0,
+            cpuid_page: 0,
+            memory_map_page: 0,
+            memory_map_page_count: 0,
+            prevalidated_count: 0,
+            prevalidated: [FWMEM; 8],
+        };
+
+        static PARAM_BLOCK: IgvmParamBlock = IgvmParamBlock {
+            param_area_size: 0,
+            param_page_offset: 0,
+            madt_offset: 0,
+            madt_size: 0,
+            memory_map_offset: 0,
+            guest_context_offset: 0,
+            debug_serial_port: 0,
+            use_alternate_injection: 0,
+            suppress_svsm_interrupts_on_snp: 0,
+            has_qemu_testdev: 0,
+            has_fw_cfg_port: 0,
+            has_test_iorequests: 0,
+            _reserved: [0],
+            firmware: FIRMWARE,
+            stage1_size: 0,
+            _reserved2: 0,
+            stage1_base: 0,
+            kernel_reserved_size: 0,
+            kernel_base: 0,
+            kernel_min_size: 0,
+            kernel_max_size: 0,
+            vtom: 0,
+        };
+
+        let param_page = &IgvmParamPage { 
+            cpu_count: 0, 
+            environment_info: 0, 
+        };
+
+        static MEMORY: IGVM_VHS_MEMORY_MAP_ENTRY = IGVM_VHS_MEMORY_MAP_ENTRY {
+            starting_gpa_page_number: 0,
+            number_of_pages: 0,
+            entry_type: igvm_defs::MemoryMapEntryType(0),
+            flags: 0,
+            reserved: 0,
+        };
+
+        static MEMORY_MAP: IgvmMemoryMap = IgvmMemoryMap { 
+            memory_map: [MEMORY; IGVM_MEMORY_ENTRIES_PER_PAGE],
+        };
+
+        Ok(Self {
+            igvm_param_block: &PARAM_BLOCK,
+            igvm_param_page: param_page,
+            igvm_memory_map: &MEMORY_MAP,
+            igvm_madt: None,
+            igvm_guest_context: None,
         })
     }
 

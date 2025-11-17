@@ -95,6 +95,37 @@ pub fn init_page_table(
     Ok(pgtable)
 }
 
+pub fn init_page_table_arm(
+    launch_info: &KernelLaunchInfo,
+) -> Result<PageBox<PageTable>, SvsmError> {
+    let mut pgtable = PageTable::allocate_new()?;
+    Ok(pgtable)
+
+    /*
+    let mut phys = PhysAddr::from(launch_info.kernel_region_phys_start);
+
+    // TODO：需要一个for循环将内核段映射到虚拟地址空间的上半部分
+
+
+    // Map subsequent heap area.
+    let heap_vregion = MemoryRegion::new(
+        VirtAddr::from(launch_info.heap_area_virt_start),
+        launch_info.heap_area_size as usize,
+    );
+    pgtable
+        .map_region(
+            heap_vregion,
+            PhysAddr::from(launch_info.heap_area_phys_start),
+            PTEntryFlags::data(),
+        )
+        .expect("Failed to map heap");
+
+    init_global_ranges();
+
+    Ok(pgtable)
+    */
+}
+
 fn invalidate_boot_memory_region(
     platform: &dyn SvsmPlatform,
     config: &SvsmConfig<'_>,

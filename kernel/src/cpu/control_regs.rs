@@ -158,6 +158,7 @@ pub unsafe fn write_cr0(cr0: CR0Flags) {
     // SAFETY: The inline assembly set the processors CR0 register with flags
     // defined by `struct CR0Flags`. The caller must ensure to not change any
     // execution-state relevant flags.
+    /*
     unsafe {
         /*
         asm!("mov %rax, %cr0",
@@ -167,6 +168,7 @@ pub unsafe fn write_cr0(cr0: CR0Flags) {
         */
         asm!("msr SCTLR_EL1, {}", in(reg) reg, options(nomem, nostack, preserves_flags));
     }
+    */
 }
 
 #[inline]

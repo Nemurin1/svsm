@@ -4,7 +4,7 @@
 //
 // Author: Joerg Roedel <jroedel@suse.de>
 
-use crate::address::{Address, PhysAddr};
+use crate::address::{Address, PhysAddr, VirtAddr};
 use crate::error::SvsmError;
 use crate::locking::SpinLock;
 use crate::mm::{virt_to_phys, PageBox};
@@ -106,6 +106,10 @@ pub fn valid_bitmap_addr() -> PhysAddr {
     VALID_BITMAP.lock().as_ref().unwrap().bitmap_addr()
 }
 
+pub fn valid_bitmap_addr_virt() -> VirtAddr {
+    VALID_BITMAP.lock().as_ref().unwrap().bitmap_addr_virt()
+}
+
 pub fn valid_bitmap_valid_addr(paddr: PhysAddr) -> bool {
     VALID_BITMAP
         .lock()
@@ -130,8 +134,12 @@ impl ValidBitmap {
     }
 
     fn bitmap_addr(&self) -> PhysAddr {
-        log::info!("@@@");
         virt_to_phys(self.bitmap.vaddr())
+    }
+
+    fn bitmap_addr_virt(&self ) -> VirtAddr {
+        log::info!("{}", self.bitmap.vaddr());
+        self.bitmap.vaddr()
     }
 
     #[inline(always)]
@@ -152,6 +160,7 @@ impl ValidBitmap {
         }
         // SAFETY: we initialized the contents of the whole slice
         self.bitmap = unsafe { new.assume_init_slice() };
+        log::info!("{}", self.bitmap.vaddr());
     }
 
     fn set_valid_4k(&mut self, paddr: PhysAddr) {

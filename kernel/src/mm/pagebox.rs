@@ -120,7 +120,6 @@ impl<T: ?Sized> PageBox<T> {
     /// Returns the virtual address of this allocation.
     #[inline]
     pub fn vaddr(&self) -> VirtAddr {
-        log::info!("###");
         VirtAddr::from(self.ptr.as_ptr().cast::<u8>())
     }
 }

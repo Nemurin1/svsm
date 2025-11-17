@@ -6,15 +6,13 @@ else
 CFLAGS = -g -O0
 endif
 
-# Common CFLAGS (freestanding ARM environment)
-CFLAGS += -I./include -nostdinc -nostdlib
-CFLAGS += -march=armv8-a -fPIE
+CFLAGS += -I./include -nostdinc -nostdlib -mno-red-zone
+CFLAGS += -m64 -march=x86-64 -mno-sse2 -fPIE
 CFLAGS += -fno-stack-protector
 CFLAGS += -ffreestanding
 CFLAGS += -Wall -Werror
 
-# Cross compiler (change if you use a different prefix)
-CC = aarch64-linux-gnu-gcc
+CC = gcc
 
 # Functions we stub out
 OBJS = src/stub.o
@@ -36,11 +34,6 @@ OBJS += src/prng/rand.o
 
 # setjmp
 OBJS += $(addprefix src/setjmp/x86_64/, \
-				longjmp.o \
-				setjmp.o \
-				)
-# setjmp (ARM version)
-OBJS += $(addprefix src/setjmp/aarch64/, \
 				longjmp.o \
 				setjmp.o \
 				)
