@@ -457,10 +457,13 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
     }
 
     // Start request processing on this CPU if required.
+    // request_loop_main(0);
+    /*
     if SVSM_PLATFORM.start_svsm_request_loop() {
         start_kernel_task(request_loop_main, 0, String::from("request-loop on CPU 0"))
             .expect("Failed to launch request loop task");
     }
+    */
 
     log::info!("SVSM native launch completed and enter idle loop");
     cpu_idle_loop(cpu_index);
@@ -470,10 +473,7 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
 pub extern "C" fn not_main() {
     // ...
 
-    // let mut writer = Writer{};
-
-    // write!(writer, "The numbers are {} and {} \n", 42, 1.0/3.0).unwrap();
-
+    /*
     unsafe {
         // Initialize GICv3
         gicv3_init();
@@ -495,6 +495,7 @@ pub extern "C" fn not_main() {
     unsafe {
         asm!("msr DAIFCLR, #2"); // enable IRQ only
     }
+    */
 
     svsm_start();
     unsafe{

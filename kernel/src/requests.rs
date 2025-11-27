@@ -23,6 +23,13 @@ use crate::protocols::{
 
 use alloc::vec::Vec;
 
+/*
+extern "C" {
+    fn plane_main_svsm(kernel_entry: usize, kernel_fdt_addr: usize);
+    fn context_main_once(request_callback: extern "C" fn()) -> !;
+}
+*/
+
 /// The SVSM Calling Area (CAA)
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
@@ -72,11 +79,12 @@ impl SvsmCaa {
 
 const _: () = assert!(core::mem::size_of::<SvsmCaa>() == 8);
 
-fn request_loop_once(
+pub extern "C" fn request_loop_once(
     params: &mut RequestParams,
     protocol: u32,
     request: u32,
 ) -> Result<(), SvsmReqError> {
+    // 处理一次请求
     match protocol {
         SVSM_CORE_PROTOCOL => core_protocol_request(request, params),
         SVSM_ATTEST_PROTOCOL => attest_protocol_request(request, params),
@@ -85,6 +93,8 @@ fn request_loop_once(
         SVSM_APIC_PROTOCOL => apic_protocol_request(request, params),
         _ => Err(SvsmReqError::unsupported_protocol()),
     }
+    // 继续进入plane
+    // context_main_once(request_loop_once)；
 }
 
 pub extern "C" fn request_loop_main(cpu_index: usize) {
@@ -111,6 +121,16 @@ pub extern "C" fn request_loop_main(cpu_index: usize) {
 
     let mut guest_regs = Vec::<GuestRegister>::new();
 
+    /*
+    unsafe{
+        // 初始化pn
+        plane_main(kernel_entry, fdt_addr,);
+        // 循环进入pn，并传递rust请求处理函数入口
+        context_main_once(request_loop_once);
+    }
+    */
+
+    // 下面的循环不应该存在了
     loop {
         // Attempt to enter the guest.  Once registers have been set, reset the
         // vector so they are not set again.

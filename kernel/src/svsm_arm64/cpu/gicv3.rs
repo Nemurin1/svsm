@@ -1,6 +1,6 @@
 
 pub use core::arch::asm;
-use core::arch::global_asm;
+// use core::arch::global_asm;
 
 /// These base addresses match QEMU 'virt' defaults for GICv3.
 /// If your platform differs, replace with values from its DTB.
