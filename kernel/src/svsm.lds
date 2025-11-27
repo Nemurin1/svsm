@@ -3,43 +3,38 @@ SECTIONS
 {
     . = 0x40080000;
     kernel_region_phys_start = .;
-    kernel_text_start = .;
+    . = ALIGN(0x1000);
     .text :
     {
       KEEP(*(.text.boot))
       *(.text.exceptions)
       . = ALIGN(4096); /* align for exceptions_vector_table*/
       *(.text.exceptions_vector_table)
-      *(.text)
+      *(.text*)
     }
-    kernel_text_end = .;
-    kernel_data_start = .;
+    . = ALIGN(0x1000);
     .data : { 
-      *(.data) 
+      *(.data*) 
     }
-    kernel_data_end = .;
-    kernel_rodata_start = .;
+    . = ALIGN(0x1000);
     .rodata : { 
-      *(.rodata)
+      *(.rodata*)
     }
-    kernel_rodata_end = .;
-    kernel_bss_start = .;
+    . = ALIGN(0x1000);
     .bss : { 
-      *(.bss) 
+      *(.bss*) 
     }
-    kernel_bss_end = .;
 
-    . = ALIGN(4096);
+    . = ALIGN(0x1000);
     LD_TTBR0_BASE = .;
     . = . + 0x1000;
 
     LD_TTBR1_BASE = .;
     . = . + 0x1000;
 
-    . = ALIGN(8);
-    . = . + 0xF0000;
+    . = ALIGN(0x1000);
+    . = . + 0x8000;
     LD_STACK_PTR = .;
 
-    . = . + 0xF0000;
     kernel_region_phys_end = .;
 }
