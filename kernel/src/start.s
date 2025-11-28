@@ -93,7 +93,7 @@ _setup_pagetable:
     cmp     x24, #512
     blt     1b
 
-    // === 填 L2_1（512 entries），phys base = 1GB + i*2MB ===
+    // === fill L2_1（512 entries），phys base = 1GB + i*2MB ===
     mov     x24, #0
 2:  mul     x25, x24, x20      // x25 = i * 2MB
     add     x25, x25, x21      // phys = 1GB + (i*2MB)
@@ -102,6 +102,14 @@ _setup_pagetable:
     add     x24, x24, #1
     cmp     x24, #512
     blt     2b
+
+
+    // ======= Insert a self-map entry =======
+    mov x17, #PGTABLE_LVL3_IDX_PTE_SELFMAP    // x17 = 493
+    lsl x17, x17, #3                          // x17 *= 8 -> 3944
+    add x15, x10, x17                         // x15 = x10 + offset
+    orr x16, x10, #3                          // table descriptor
+    str x16, [x15]                            // L0[493] = L0 | table-bit
 
 _enable_mmu:
     // Enable the MMU.
@@ -167,3 +175,5 @@ system_off:
 
 .equ TWO_MB, 0x00200000
 .equ ONE_GB, 0x40000000
+.equ PGTABLE_LVL3_IDX_PTE_SELFMAP, 493
+// self-map in L0 493 entry
