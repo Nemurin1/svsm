@@ -1,5 +1,7 @@
 
 pub use core::arch::asm;
+
+use crate::error::SvsmError;
 // use core::arch::global_asm;
 
 /// These base addresses match QEMU 'virt' defaults for GICv3.
@@ -63,4 +65,9 @@ pub fn gicv3_enable_irq(irq: u32) {
     let reg = GICD_BASE + GICD_ISENABLER + ((irq as usize / 32) * 4);
     let bit = 1u32 << (irq % 32);
     mmio_write32(reg, bit);
+}
+
+#[cfg(feature = "cca")]
+pub fn init_mmio_gic() -> Result<(), SvsmError> {
+    Ok(())
 }

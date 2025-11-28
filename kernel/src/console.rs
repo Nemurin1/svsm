@@ -19,6 +19,8 @@ struct Console {
     writer: &'static dyn Terminal,
 }
 
+static UART0:usize = 0x0900_0000;
+
 impl fmt::Write for Console {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_bytes(s.as_bytes());
@@ -30,8 +32,8 @@ impl Console {
     pub fn write_bytes(&self, buffer: &[u8]) {
         for &b in buffer.iter() {
             unsafe {
-                // 直接写 ARM UART MMIO 地址
-                ptr::write_volatile(0x0900_0000 as *mut u8, b);
+                // Direct to write arm uart mmio address
+                ptr::write_volatile(UART0 as *mut u8, b);
             }
         }
     }
@@ -163,4 +165,13 @@ pub fn install_console_logger(component: &'static str) -> ImmutAfterInitResult<(
 macro_rules! println {
     () => (log::info!(""));
     ($($arg:tt)*) => (log::info!($($arg)*));
+}
+
+
+// Map uart address in unprotected address
+#[cfg(feature = "cca")]
+pub fn init_mmio_uart() -> Result<(), SvsmError> {
+    // First, we should know where is the uart:0x9000000 address pte
+
+    Ok(())
 }

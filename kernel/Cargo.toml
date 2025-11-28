@@ -93,6 +93,7 @@ verus_all = ["builtin", "builtin_macros", "vstd", "verify_proof/verus", "verify_
 verus = ["verus_all", "verify_proof/noverify", "verify_external/noverify"]
 noverify = []
 virtio-drivers = ["dep:virtio-drivers"]
+cca = []
 
 [dev-dependencies]
 sha2 = { workspace = true, features = ["force-soft"] }

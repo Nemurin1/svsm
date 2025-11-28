@@ -72,6 +72,13 @@ use svsm::svsm_arm64::cpu::gicv3::{gicv3_init, gicv3_enable_irq};
 #[cfg(feature = "attest")]
 use kbs_types::Tee;
 
+#[cfg(feature = "cca")]
+use svsm::realm::rsi::rsi_cmd::{init_realm_config};
+#[cfg(feature = "cca")]
+use svsm::svsm_arm64::cpu::gicv3::{init_mmio_gic};
+#[cfg(feature = "cca")]
+use svsm::console::{init_mmio_uart};
+
 extern "C" {
     static bsp_stack: u8;
     static bsp_stack_end: u8;
@@ -471,6 +478,13 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
 
 #[no_mangle]
 pub extern "C" fn not_main() {
+    #[cfg(feature = "cca")]
+    {
+        init_realm_config().expect("REALM_CONFIG already initialized");
+        init_mmio_gic().expect("Cannot map gic in unprotected IPA");
+        init_mmio_uart().expect("Cannot map uart in unprotected IPA");;
+    }
+
     // ...
 
     /*

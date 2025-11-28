@@ -50,6 +50,8 @@ pub mod vmm;
 pub mod vtpm;
 // pub mod stage2;
 pub mod svsm_arm64;
+#[cfg(feature = "cca")]
+pub mod realm;
 
 #[test]
 fn test_nop() {}
