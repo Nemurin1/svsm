@@ -27,7 +27,7 @@ SECTIONS
 
     . = ALIGN(0x1000);
     LD_TTBR0_BASE = .;
-    . = . + 0x1000;
+    . = . + 0x4000;
 
     LD_TTBR1_BASE = .;
     . = . + 0x1000;
