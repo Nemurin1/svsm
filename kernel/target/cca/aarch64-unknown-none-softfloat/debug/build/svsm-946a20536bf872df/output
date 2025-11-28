@@ -1,0 +1,13 @@
+cargo::rustc-check-cfg=cfg(fuzzing)
+cargo::rustc-check-cfg=cfg(test_in_svsm)
+cargo::rustc-check-cfg=cfg(verus_keep_ghost)
+cargo::rustc-check-cfg=cfg(verus_keep_ghost_body)
+cargo::rustc-check-cfg=cfg(verus_verify_core)
+cargo:rustc-link-arg-bin=svsm=-nostdlib
+cargo:rustc-link-arg-bin=svsm=--build-id=none
+cargo:rustc-link-arg-bin=svsm=--no-relax
+cargo:rustc-link-arg-bin=svsm=-Tkernel/src/svsm.lds
+cargo:rustc-link-arg-bin=svsm=-no-pie
+cargo:rerun-if-changed=kernel/src/svsm.lds
+cargo:rerun-if-changed=build.rs
+cargo:rustc-env=VERUS_ARGS=--rlimit=1 --expand-errors --multiple-errors=5 --no-auto-recommends-check --trace -Z unstable-options

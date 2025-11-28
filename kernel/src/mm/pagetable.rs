@@ -212,7 +212,7 @@ impl PagingMode {
 /// Represents a page table entry.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default)]
-pub struct PTEntry(PhysAddr);
+pub struct PTEntry(pub PhysAddr);
 
 impl PTEntry {
     /// Check if the page table entry is clear (null).
@@ -671,7 +671,7 @@ impl PageTable {
     ///
     /// # Returns
     /// The virtual address of the PTE.
-    fn get_pte_address(vaddr: VirtAddr) -> VirtAddr {
+    pub fn get_pte_address(vaddr: VirtAddr) -> VirtAddr {
         SVSM_PTE_BASE + ((usize::from(vaddr) & 0x0000_FFFF_FFFF_F000) >> 9)
     }
 
@@ -684,7 +684,6 @@ impl PageTable {
     /// Some(PageFrame) if the virtual address is valid.
     /// None if the virtual address is not valid.
     pub fn virt_to_frame(vaddr: VirtAddr) -> Option<PageFrame> {
-        log::info!("%%%");
         // Calculate the virtual addresses of each level of the paging
         // hierarchy in the self-map.
         let pte_addr = Self::get_pte_address(vaddr);

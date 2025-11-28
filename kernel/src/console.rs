@@ -13,13 +13,25 @@ use core::ptr;
 use core::fmt;
 use core::sync::atomic::{AtomicBool, Ordering};
 use release::COCONUT_VERSION;
+#[cfg(feature = "cca")]
+use crate::address::VirtAddr;
+#[cfg(feature = "cca")]
+use crate::realm::rsi::rsi_cmd::REALM_CONFIG;
+#[cfg(feature = "cca")]
+use crate::mm::pagetable::PageTable;
+#[cfg(feature = "cca")]
+use crate::mm::pagetable::PTEntry;
+#[cfg(feature = "cca")]
+use crate::address::PhysAddr;
+#[cfg(feature = "cca")]
+use crate::address::Address;
 
 #[derive(Clone, Copy, Debug)]
 struct Console {
     writer: &'static dyn Terminal,
 }
 
-static UART0:usize = 0x0900_0000;
+static UART0: usize = 0x0900_0000;
 
 impl fmt::Write for Console {
     fn write_str(&mut self, s: &str) -> fmt::Result {
@@ -171,7 +183,37 @@ macro_rules! println {
 // Map uart address in unprotected address
 #[cfg(feature = "cca")]
 pub fn init_mmio_uart() -> Result<(), SvsmError> {
-    // First, we should know where is the uart:0x9000000 address pte
+    let uart_va = VirtAddr::new(UART0);
+
+    let l3_addr = PageTable::get_pte_address(uart_va);
+    let l2_addr = PageTable::get_pte_address(l3_addr);
+
+    let mut l2_pte = unsafe { PTEntry::read_pte(l2_addr) };
+
+    /*
+    if !L2.present() {
+        return Err(SvsmError::General("UART PDE not present"));
+    }
+
+    if !L2.huge() {
+        return Err(SvsmError::General(
+            "UART is not mapped as 2MB block entry",
+        ));
+    }
+    */
+
+    let ipa_bits: u64 = REALM_CONFIG.ipa_bits;
+    let ipa_width: u64 = ipa_bits - 1;
+
+    let frame_mask = 0x0000_FFFF_FFFF_F000;
+    let flag_mask = 0x0000_0000_0000_0FFF;
+
+    let frame_addr: PhysAddr = PhysAddr::from(l2_pte.0.bits() & frame_mask);
+    let flag: usize = l2_pte.0.bits() & frame_mask;
+
+    let unprotected_frame_addr: u64 = (frame_addr.bits() as u64) | ipa_width;
+
+    l2_pte.0 = PhysAddr::from(unprotected_frame_addr | (flag as u64));
 
     Ok(())
 }

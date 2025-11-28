@@ -33,10 +33,10 @@ pub mod arm_smccc {
 
     /// Build call value (similar to ARM_SMCCC_CALL_VAL macro)
     pub const fn call_val(typ: u64, cc: u64, owner: u64, func_num: u64) -> u64 {
-        ((typ as u64) << TYPE_SHIFT)
-            | ((cc as u64) << CC_SHIFT)
-            | ((owner as u64) << OWNER_SHIFT)
-            | (func_num as u64)
+        ((typ) << TYPE_SHIFT)
+            | ((cc) << CC_SHIFT)
+            | ((owner) << OWNER_SHIFT)
+            | (func_num)
     }
 
     /// Convenience wrapper for the common case used in the header:
@@ -151,6 +151,7 @@ pub mod plane_enter_flags {
 /// - offset 0x240..0x1000: padding
 #[repr(C)]
 #[repr(align(0x1000))]
+#[derive(Debug)]
 pub struct RealmConfig {
     // first union: 5 * unsigned long (assuming 8 bytes each on aarch64)
     pub ipa_bits: u64,
@@ -175,6 +176,21 @@ const _: () = {
     }
 };
 
+impl Default for RealmConfig {
+    fn default() -> Self {
+        RealmConfig {
+            ipa_bits: 0,
+            hash_algo: 0,
+            num_aux_planes: 0,
+            gicv3_vtr: 0,
+            ats_plane: 0,
+            _pad1: [0; 0x200 - 5 * 8],
+            rpv: [0; 64],
+            _pad2: [0; 0xe00 - 64],
+        }
+    }
+}
+
 /// plane_enter, plane_exit, plane_run in C have explicit alignments and
 /// fields placed at specific offsets (with __aligned(x) between certain fields).
 /// Reproducing exact offsets can be brittle; we therefore represent them
@@ -193,6 +209,7 @@ const _: () = {
 /// We'll build paddings to place fields at the intended offsets.
 #[repr(C)]
 #[repr(align(0x800))]
+#[derive(Debug)]
 pub struct PlaneEnter {
     // 0x000
     pub flags: u64,
@@ -217,6 +234,7 @@ pub struct PlaneEnter {
 
 #[repr(C)]
 #[repr(align(0x800))]
+#[derive(Debug)]
 pub struct PlaneExit {
     // 0x000
     pub reason: u8,
@@ -254,6 +272,7 @@ pub struct PlaneExit {
 
 #[repr(C)]
 #[repr(align(0x1000))]
+#[derive(Debug)]
 pub struct PlaneRun {
     pub enter: PlaneEnter,
     pub exit: PlaneExit,

@@ -1,0 +1,1 @@
+{"rustc":13226066032359371072,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[6301144549766448462,"build_script_build",false,11137659189321587714]],"local":[{"RerunIfChanged":{"output":"aarch64-unknown-none-softfloat/debug/build/svsm-d7bd34a979f163f5/output","paths":["kernel/src/svsm.lds","build.rs"]}}],"rustflags":[],"config":0,"compile_kind":0}

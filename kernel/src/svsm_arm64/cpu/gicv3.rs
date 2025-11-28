@@ -1,5 +1,5 @@
 
-pub use core::arch::asm;
+use core::arch::asm;
 
 use crate::error::SvsmError;
 // use core::arch::global_asm;

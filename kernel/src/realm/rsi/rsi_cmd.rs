@@ -1,9 +1,11 @@
 use crate::realm::rsi::{RealmConfig};
-use crate::realm::rsi::smccc::ArmSmcccRes;
+use crate::realm::rsi::smccc::{ArmSmcccRes, arm_smccc_smc};
 use crate::realm::rsi::fid::*;
+use crate::realm::rsi::retcodes::*;
 use crate::error::SvsmError;
+use crate::utils::immut_after_init::ImmutAfterInitCell;
 
-static REALM_CONFIG: ImmutAfterInitCell<RealmConfig> = ImmutAfterInitCell::uninit();
+pub static REALM_CONFIG: ImmutAfterInitCell<RealmConfig> = ImmutAfterInitCell::uninit();
 
 pub fn rsi_realm_config() -> RealmConfig {
     let mut res = ArmSmcccRes {
@@ -11,16 +13,12 @@ pub fn rsi_realm_config() -> RealmConfig {
         a1: 0,
         a2: 0,
         a3: 0,
-        a4: 0,
-        a5: 0,
-        a6: 0,
-        a7: 0,
     };
 
     let mut config = RealmConfig::default();
 
     unsafe {
-        // 调用 SMC
+        // call SMC
         arm_smccc_smc(
             SMC_RSI_REALM_CONFIG,                   // FID
             &mut config as *mut RealmConfig as u64, // arg1 = RealmConfig 地址

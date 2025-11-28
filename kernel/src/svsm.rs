@@ -480,8 +480,10 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
 pub extern "C" fn not_main() {
     #[cfg(feature = "cca")]
     {
+        // 第一步调用rsi_realm_config获取配置信息
         init_realm_config().expect("REALM_CONFIG already initialized");
-        init_mmio_gic().expect("Cannot map gic in unprotected IPA");
+        // 然后根据配置信息中的ipa_width来修改页表项
+        // init_mmio_gic().expect("Cannot map gic in unprotected IPA");
         init_mmio_uart().expect("Cannot map uart in unprotected IPA");;
     }
 
