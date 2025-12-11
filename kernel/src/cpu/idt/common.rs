@@ -373,6 +373,7 @@ impl<'a> IDT<'a> {
 
         // SAFETY: Inline assembly to load an IDT. `'static` lifetime ensures
         // that address is always available for the CPU.
+        /*
         unsafe {
             /*
             其实就是在加载异常描述符表，也就是arm的异常处理向量表，在start.S阶段就已经做了，但为了编译成功而修改
@@ -385,6 +386,7 @@ impl<'a> IDT<'a> {
                 options(nostack),
             );
         }
+        */
     }
 
     /// Make the IDT read-only.
