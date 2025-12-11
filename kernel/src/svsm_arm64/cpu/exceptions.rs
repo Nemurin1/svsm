@@ -1,35 +1,30 @@
-use crate::print;
-use crate::svsm_arm64::uart_console;
 use core::arch::global_asm;
+
+const EL1_SP0_SYNC: &'static str = "EL1_SP0_SYNC";
 
 global_asm!(include_str!("exceptions.s"));
 
-#[no_mangle]
-pub extern "C" fn irq_entry_from_asm(irq_id: u64) {
-    // This function is called from assembly with irq_id in x0.
-    // Note: IRQ id may include some special values; real code must check spurious ID.
-    print!(">>> IRQ received: ");
-    // print decimal (simple)
-    let mut buf = [0u8; 20];
-    let n = u64_to_dec(irq_id, &mut buf);
-    let s = core::str::from_utf8(&buf[..n]).unwrap_or("?");
-    print!("{}", s);
-    print!("\n");
+#[repr(C)]
+#[derive(Debug)]
+pub struct ExceptionCtx {
+    regs: [u64; 30],
+    elr_el1: u64,
+    spsr_el1: u64,
+    lr: u64,
 }
 
-fn u64_to_dec(mut v: u64, out: &mut [u8]) -> usize {
-    if v == 0 {
-        out[0] = b'0';
-        return 1;
+// print exception data
+fn catch(ctx: &mut ExceptionCtx, name: &str) {
+    
+    log::info!("Exception: {}   ELR_EL1: 0x{:016x}", name, ctx.elr_el1);
+
+    // enter endless loop
+    loop {
+
     }
-    let mut i = out.len();
-    while v > 0 && i > 0 {
-        i -= 1;
-        out[i] = b'0' + (v % 10) as u8;
-        v /= 10;
-    }
-    let start = i;
-    let len = out.len() - start;
-    out.copy_within(start..out.len(), 0);
-    len
+}
+
+#[no_mangle]
+unsafe extern "C" fn el1_sp0_sync(ctx: &mut ExceptionCtx) {
+    catch(ctx, EL1_SP0_SYNC);
 }

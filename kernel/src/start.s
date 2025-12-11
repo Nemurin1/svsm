@@ -8,10 +8,9 @@ _start:
     ldr     x30, =LD_STACK_PTR
     mov     sp, x30
 
-    // exception table
-    adrp    x1, exception_vector_table
-    add     x1, x1, :lo12:exception_vector_table
-    msr     VBAR_EL1, x1
+    // Initialize exceptions
+    ldr     x0, =exception_vector_table
+    msr     vbar_el1, x0
     isb
 
     // enabled NEON/FP registers
