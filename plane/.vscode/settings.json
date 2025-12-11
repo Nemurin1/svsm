@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "rsi_cmds.h": "c",
+        "rsi_smc.h": "c",
+        "arm-smccc.h": "c",
+        "std.h": "c"
+    }
+}
