@@ -337,13 +337,14 @@ static void aux_plane_context_init(int plane_index,
 	aux_plane->pstate = PSR_MODE_EL1h | PSR_I_BIT | PSR_F_BIT | PSR_A_BIT | PSR_D_BIT;
 	aux_plane->flags = PLANE_ENTER_FLAG_GIC_OWNER;
 
-	// rsi_set_memory_range_shared(0x40030000UL, 0x40080000UL);
-	// rsi_set_memory_range_shared(0x409da000UL, 0x40a23000UL);
-	// rsi_set_memory_range_shared(0x41270000UL, 0x41280000UL);
-	// rsi_set_memory_range_shared(0xb1600000UL, 0xb5600000UL);
-	// rsi_set_memory_range_shared(0xbac00000UL, 0xbacc2000UL);
+	rsi_set_memory_range_shared(0x40030000UL, 0x40080000UL);
+	rsi_set_memory_range_shared(0x409da000UL, 0x40a23000UL);
+	rsi_set_memory_range_shared(0x41270000UL, 0x41280000UL);
+	rsi_set_memory_range_shared(0xb1600000UL, 0xb5600000UL);
+	rsi_set_memory_range_shared(0xbac00000UL, 0xbacc2000UL);
 
 	aux_plane_gic_init(&aux_plane->gic);
+	
 	aux_plane_timer_init(&aux_plane->timer);
 
 }
@@ -466,28 +467,28 @@ typedef void (*request_fn_t)(void);
 void plane_main_svsm(unsigned long kernel_entry,
 			    unsigned long kernel_fdt_addr)
 {
-	// int ret;
+	int ret;
 
 	uart_puts("Hello UART\n");
 
 	/* Get realm configure */
-	/*
+
 	ret = get_realm_config();
 	if (ret != 0) {
 		// efi_print("[P0]\tGet realm config failed\n");
 		uart_puts("[P0]\tGet realm config failed\n");
 		for (;;);
 	}
-	*/
+
 	uart_puts("[P0]\tGet realm config\n");
 
-	// if (config.num_aux_planes == 0) {
+	if (config.num_aux_planes == 0) {
 		// efi_print("[P0]\tNo aux plane, enter kernel directly\n");
 		/* No aux plane, enter kernel directly */
-		// void (*entry)(u64, u64, u64, u64);
-		// entry = (void *)kernel_entry;
-		// entry(kernel_fdt_addr, 0, 0, 0);
-	// }
+		void (*entry)(u64, u64, u64, u64);
+		entry = (void *)kernel_entry;
+		entry(kernel_fdt_addr, 0, 0, 0);
+	}
 	uart_puts("[P0]\tCurrent realm have pn\n");
 
 	/* Initialize the aux plane context */
@@ -495,6 +496,7 @@ void plane_main_svsm(unsigned long kernel_entry,
 		aux_plane_context_init(i, kernel_entry,
 				       kernel_fdt_addr);
 	}
+	uart_puts("[P0]\tExit Plane code\n");
 }
 
 static void context_main_once(request_fn_t request_callback)
