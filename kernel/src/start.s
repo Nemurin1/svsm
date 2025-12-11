@@ -3,6 +3,7 @@
 .section ".text.boot"
 
 _start:
+    mov     x27, x0
     // stack
     ldr     x30, =LD_STACK_PTR
     mov     sp, x30
@@ -12,6 +13,15 @@ _start:
     add     x1, x1, :lo12:exception_vector_table
     msr     VBAR_EL1, x1
     isb
+
+    // enabled NEON/FP registers
+    mrs     x0, CPACR_EL1
+    mov     x1, #3
+    lsl     x1, x1, #20
+    orr     x0, x0, x1
+    msr     CPACR_EL1, x0
+    isb 
+
     bl      _setup_mmu
 
 // MMU
@@ -55,7 +65,8 @@ _setup_pagetable:
     str     x14, [x10]           // L0[0] = &L1 | table-bit(3)
 
     // L1[0] -> pointer to L2_0; L1[1] -> pointer to L2_1 (table descriptors)
-    orr     x14, x12, #3
+    mov     x15, #0x23
+    orr     x14, x12, x15
     str     x14, [x11]           // L1[0] = &L2_0 | table-bit
     orr     x14, x13, #3
     str     x14, [x11, #8]       // L1[1] = &L2_1 | table-bit
@@ -63,8 +74,8 @@ _setup_pagetable:
     //
     // Now we should fill two L2 pagetables, each L2 pagetable hs 512 escriptors for 
     // 2MB blocks:
-    // L2_0 map phys 0x0000_0000 .. 0x3FF_FFFF (0 .. 1GB - 1)
-    // L2_1 map phys 0x4000_0000 .. 0x7FF_FFFF (1GB .. 2GB - 1)
+    // L2_0 map phys 0x0000_0000 .. 0x3FFF_FFFF (0 .. 1GB - 1)
+    // L2_1 map phys 0x4000_0000 .. 0x7FFF_FFFF (1GB .. 2GB - 1)
     //
 
     // Load constant
@@ -76,17 +87,18 @@ _setup_pagetable:
     // === fill L2_0（512 entries）===
     mov     x24, #0              // counter i = 0 .. 511
 1:  // if i == 0 --> phys = 0 -> use PERIPHERALS_ATTR, else use IDENTITY_MAP_ATTR
-    cbz     x24, .L2_0_entry_is_zero
+    // cbz     x24, .L2_0_entry_is_zero
     // phys = i * 2MB
     mul     x25, x24, x20       // x25 = phys
+    orr     x26, x25, x23       // use PERIPHERALS_ATTR
     // entry = phys | IDENTITY_MAP_ATTR
-    orr     x26, x25, x22
-    b       .L2_0_store
-.L2_0_entry_is_zero:
+    // orr     x26, x25, x22
+    // b       .L2_0_store
+// .L2_0_entry_is_zero:
     // phys = 0
-    mov     x25, #0
-    orr     x26, x25, x23      // use PERIPHERALS_ATTR for phys 0
-.L2_0_store:
+    // mov     x25, #0
+    // orr     x26, x25, x23      // use PERIPHERALS_ATTR for phys 0
+// .L2_0_store:
     // store into L2_0 (sequentially). We'll write and advance pointer by 8 each time.
     str     x26, [x12], #8
     add     x24, x24, #1
@@ -105,11 +117,29 @@ _setup_pagetable:
 
 
     // ======= Insert a self-map entry =======
-    mov x17, #PGTABLE_LVL3_IDX_PTE_SELFMAP    // x17 = 493
-    lsl x17, x17, #3                          // x17 *= 8 -> 3944
-    add x15, x10, x17                         // x15 = x10 + offset
-    orr x16, x10, #3                          // table descriptor
-    str x16, [x15]                            // L0[493] = L0 | table-bit
+    mov     x17, #PGTABLE_LVL3_IDX_PTE_SELFMAP    // x17 = 493
+    lsl     x17, x17, #3                          // x17 *= 8 -> 3944
+    add     x15, x10, x17                         // x15 = x10 + offset
+    orr     x16, x10, #3                          // table descriptor
+    str     x16, [x15]                            // L0[493] = L0 | table-bit
+
+    // ======= Modify UART0 L2 PTE: set IPA MSB (ipa_width= 41 -> bit40) =======
+    // Compute L2_0 base again (we advanced x12 during fill, so recompute)
+    // x10: L0 base (still holds earlier)
+    add     x18, x10, #0x2000     // x18 = L2_0_base (byte address)
+
+    // compute index for UART0 (phys 0x0900_0000)
+    ldr     x19, =0x09000000      // UART0 physical base
+    lsr     x19, x19, #21         // x19 = index = phys >> 21 (2MB granule)
+    lsl     x19, x19, #3          // x19 *= 8 -> byte offset for entry
+
+    add     x18, x18, x19         // x18 = &L2_0[index]
+
+    // load-modify-store: set bit40
+    ldr     x20, [x18]            // x20 = original PTE
+    ldr     x21, =UNPROT_MASK     // x21 = 1 << 40
+    orr     x20, x20, x21         // set IPA MSB (bit40)
+    str     x20, [x18]            // write back PTE
 
 _enable_mmu:
     // Enable the MMU.
@@ -120,6 +150,7 @@ _enable_mmu:
     isb
 
 _start_main:
+    mov     x0, x27
     bl      not_main
 
 .equ PSCI_SYSTEM_OFF, 0x84000002
@@ -158,7 +189,7 @@ system_off:
 // PXN   | b1      << 53 | Privileged execute Never
 // AF    | b1      << 10 | Access Flag
 // SH    | b10     << 8  | Outer shareable
-// AP    | b01     << 6  | R/W, EL0 access denied
+// AP    | b00     << 6  | R/W, EL0 access denied
 // NS    | b0      << 5  | Security bit (EL3 and Secure EL1 only)
 // INDX  | b000    << 2  | Attribute index in MAIR_ELn，see MAIR_EL1_VALUE
 // ENTRY | b01     << 0  | Block entry
@@ -177,3 +208,6 @@ system_off:
 .equ ONE_GB, 0x40000000
 .equ PGTABLE_LVL3_IDX_PTE_SELFMAP, 493
 // self-map in L0 493 entry
+.equ UNPROT_MASK, 0x10000000000  
+// 1 << 40, for ipa_width = 41
+.equ ONE_GB, 0x40000000
