@@ -2356,7 +2356,7 @@ pub fn root_mem_init(pstart: PhysAddr, vstart: VirtAddr, page_count: usize) {
         region.start_phys = pstart;
         region.start_virt = vstart;
         region.page_count = page_count;
-        log::info!("{} {} {}", pstart, vstart, page_count);
+        log::info!("{:#018x} {:#018x} {}", pstart, vstart, page_count);
         region.init_memory();
         // drop lock here so slab initialization does not deadlock
     }

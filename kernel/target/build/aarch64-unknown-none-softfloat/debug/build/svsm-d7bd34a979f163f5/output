@@ -10,4 +10,8 @@ cargo:rustc-link-arg-bin=svsm=-Tkernel/src/svsm.lds
 cargo:rustc-link-arg-bin=svsm=-no-pie
 cargo:rerun-if-changed=kernel/src/svsm.lds
 cargo:rerun-if-changed=build.rs
+cargo:rustc-link-search=native=plane
+cargo:rustc-link-lib=static=mylib
+cargo:rerun-if-changed=lib/libmylib.a
+cargo:rerun-if-changed=build.rs
 cargo:rustc-env=VERUS_ARGS=--rlimit=1 --expand-errors --multiple-errors=5 --no-auto-recommends-check --trace -Z unstable-options

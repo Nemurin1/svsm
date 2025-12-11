@@ -78,7 +78,9 @@ pub trait SvsmPlatform: Sync {
         // SAFETY: executing HLT in assembly is always safe.
         unsafe {
             // asm!("hlt");
-            asm!("wfi");
+            loop{
+                asm!("wfi");
+            }
         }
     }
 

@@ -162,7 +162,7 @@ fn setup_svsm_early_allocator(heap_start: u64, heap_end: u64) {
 }
 
 #[no_mangle]
-extern "C" fn svsm_start(/* li: &KernelLaunchInfo, vb_addr: usize */) -> ! {
+extern "C" fn svsm_start(/* li: &KernelLaunchInfo, vb_addr: usize */fdt_addr: u64) -> ! {
     let kernel_start = unsafe { &kernel_region_phys_start as *const u64 as u64 };
     let kernel_end = unsafe { &kernel_region_phys_end as *const u64 as u64 };
     let kernel_size: u64 = 256 * 1024;
@@ -370,14 +370,14 @@ extern "C" fn svsm_start(/* li: &KernelLaunchInfo, vb_addr: usize */) -> ! {
     //     schedule_init();
     // }
 
-    svsm_main(0);
+    svsm_main(0, fdt_addr);
 
     unreachable!("SVSM entry point terminated unexpectedly");
 }
 
 
 #[no_mangle]
-pub extern "C" fn svsm_main(cpu_index: usize) {
+pub extern "C" fn svsm_main(cpu_index: usize, fdt_addr: u64) {
     debug_assert_eq!(cpu_index, 0);
 
     // let launch_info: Stage2LaunchInfo = Default::default();
@@ -472,12 +472,16 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
     }
     */
 
+    log::info!("Enter request loop and pass device tree address");
+    log::info!("Device Tree address: {:#018x}", fdt_addr);
+    request_loop_main(cpu_index, fdt_addr);
+
     log::info!("SVSM native launch completed and enter idle loop");
-    cpu_idle_loop(cpu_index);
+    platform::halt();
 }
 
 #[no_mangle]
-pub extern "C" fn not_main() {
+pub extern "C" fn not_main(fdt_addr: u64) {
     #[cfg(feature = "cca")]
     {
         // 第一步调用rsi_realm_config获取配置信息
@@ -513,7 +517,7 @@ pub extern "C" fn not_main() {
     }
     */
 
-    svsm_start();
+    svsm_start(fdt_addr);
     unsafe{
       loop {
         // low-power wait; interrupts will preempt into vector table

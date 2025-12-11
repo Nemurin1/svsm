@@ -8,7 +8,9 @@ QEMU_ARGS := \
 	-nographic \
 	-smp 1 \
 	-m 1024M \
-	-kernel $(KERNEL) 
+	-kernel $(KERNEL) \
+	-d guest_errors \
+	-D qemu.log
 
 QEMU_ARGS_DEBUG := \
 	-machine virt,gic-version=3 \

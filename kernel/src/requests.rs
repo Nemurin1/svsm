@@ -23,12 +23,9 @@ use crate::protocols::{
 
 use alloc::vec::Vec;
 
-/*
 extern "C" {
-    fn plane_main_svsm(kernel_entry: usize, kernel_fdt_addr: usize);
-    fn context_main_once(request_callback: extern "C" fn()) -> !;
+    fn plane_main_svsm(kernel_entry: u64, kernel_fdt_addr: u64);
 }
-*/
 
 /// The SVSM Calling Area (CAA)
 #[repr(C, packed)]
@@ -97,9 +94,10 @@ pub extern "C" fn request_loop_once(
     // context_main_once(request_loop_once)；
 }
 
-pub extern "C" fn request_loop_main(cpu_index: usize) {
+pub extern "C" fn request_loop_main(cpu_index: usize, fdt_addr: u64) {
     log::info!("Launching request-processing task on CPU {}", cpu_index);
 
+    /*
     if cpu_index != 0 {
         // Send this task to the correct CPU.
         set_affinity(cpu_index);
@@ -112,14 +110,15 @@ pub extern "C" fn request_loop_main(cpu_index: usize) {
                 .expect("Failed to launch request loop thread");
         }
     }
+    */
 
-    debug_assert_eq!(cpu_index, this_cpu().get_cpu_index());
+    // debug_assert_eq!(cpu_index, this_cpu().get_cpu_index());
 
     // Suppress the use of IPIs before entering the guest, and ensure that all
     // other CPUs have done the same.
-    wait_for_ipi_block();
+    // wait_for_ipi_block();
 
-    let mut guest_regs = Vec::<GuestRegister>::new();
+    // let mut guest_regs = Vec::<GuestRegister>::new();
 
     /*
     unsafe{
@@ -130,7 +129,7 @@ pub extern "C" fn request_loop_main(cpu_index: usize) {
     }
     */
 
-    // 下面的循环不应该存在了
+    /*
     loop {
         // Attempt to enter the guest.  Once registers have been set, reset the
         // vector so they are not set again.
@@ -145,6 +144,17 @@ pub extern "C" fn request_loop_main(cpu_index: usize) {
             GuestExitMessage::Svsm((protocol, request, mut params)) => {
                 guest_regs = process_request(protocol, request, &mut params);
             }
+        }
+    }
+    */
+
+    let kernel_entry: u64 = 0x60000000;
+    let kernel_fdt_addr = fdt_addr;
+
+    loop {
+        unsafe {
+            log::info!("Intialized plane context");
+            plane_main_svsm(kernel_entry, kernel_fdt_addr);
         }
     }
 }

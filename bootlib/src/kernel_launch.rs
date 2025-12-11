@@ -16,7 +16,7 @@ pub const LOWMEM_END: u32 = 0x40000;
 
 // pub const STAGE2_HEAP_START: u32 = 0x10000; // 64 KB
 // pub const STAGE2_HEAP_END: u32 = LOWMEM_END; // 640 KB
-pub const STAGE2_HEAP_START: u32 = 0x40000000;
+pub const STAGE2_HEAP_START: u32 = 0x40010000;
 pub const STAGE2_HEAP_END: u32 = 0x40000000 + LOWMEM_END - 0x10000;
 pub const STAGE2_BASE: u32 = 0x800000; // Start of stage2 area excluding heap
 pub const STAGE2_STACK_END: u32 = STAGE2_BASE;

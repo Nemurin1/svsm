@@ -32,8 +32,7 @@ SECTIONS
     LD_TTBR1_BASE = .;
     . = . + 0x1000;
 
-    . = ALIGN(0x1000);
-    . = . + 0x8000;
+    . = . + 0xF000;
     LD_STACK_PTR = .;
 
     kernel_region_phys_end = .;

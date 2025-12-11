@@ -21,6 +21,12 @@ fn main() {
 
     println!("cargo:rerun-if-changed=kernel/src/svsm.lds");
     println!("cargo:rerun-if-changed=build.rs");
+
+    println!("cargo:rustc-link-search=native=plane"); // 静态库所在目录
+    println!("cargo:rustc-link-lib=static=mylib");   // 链接 libmylib.a
+
+    println!("cargo:rerun-if-changed=lib/libmylib.a"); // 当库更新时重新构建
+    println!("cargo:rerun-if-changed=build.rs");
     init_verify();
 }
 
