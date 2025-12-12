@@ -4,14 +4,13 @@ TARGET = aarch64-unknown-none-softfloat
 
 QEMU_ARGS := \
 	-machine virt,gic-version=3 \
+	-machine dumpdtb=base.dtb \
 	-cpu cortex-a53 \
 	-nographic \
 	-smp 1 \
 	-m 1024M \
 	-kernel $(KERNEL) \
-	-d guest_errors \
-	-D qemu.log
-
+	
 QEMU_ARGS_DEBUG := \
 	-machine virt,gic-version=3 \
 	-cpu cortex-a53 \
