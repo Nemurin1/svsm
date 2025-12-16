@@ -122,6 +122,7 @@ _setup_pagetable:
     orr     x16, x10, #3                          // table descriptor
     str     x16, [x15]                            // L0[493] = L0 | table-bit
 
+/*
     // ======= Modify UART0 L2 PTE: set IPA MSB (ipa_width= 41 -> bit40) =======
     // Compute L2_0 base again (we advanced x12 during fill, so recompute)
     // x10: L0 base (still holds earlier)
@@ -139,6 +140,7 @@ _setup_pagetable:
     ldr     x21, =UNPROT_MASK     // x21 = 1 << 40
     orr     x20, x20, x21         // set IPA MSB (bit40)
     str     x20, [x18]            // write back PTE
+*/
 
 _enable_mmu:
     // Enable the MMU.

@@ -25,6 +25,7 @@ use alloc::vec::Vec;
 
 extern "C" {
     fn plane_main_svsm(kernel_entry: u64, kernel_fdt_addr: u64);
+    fn context_main_loop_svsm();
 }
 
 /// The SVSM Calling Area (CAA)
@@ -94,7 +95,7 @@ pub extern "C" fn request_loop_once(
     // context_main_once(request_loop_once)；
 }
 
-pub extern "C" fn request_loop_main(cpu_index: usize, fdt_addr: u64) {
+pub extern "C" fn request_loop_main(cpu_index: usize) {
     log::info!("Launching request-processing task on CPU {}", cpu_index);
 
     /*
@@ -149,12 +150,14 @@ pub extern "C" fn request_loop_main(cpu_index: usize, fdt_addr: u64) {
     */
 
     let kernel_entry: u64 = 0x60000000;
-    let kernel_fdt_addr = fdt_addr;
+    let kernel_fdt_addr = 0x40000000;
 
     loop {
         unsafe {
             log::info!("Intialized plane context");
             plane_main_svsm(kernel_entry, kernel_fdt_addr);
+            log::info!("Enter plane");
+            context_main_loop_svsm();
         }
     }
 }

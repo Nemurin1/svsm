@@ -467,39 +467,45 @@ typedef void (*request_fn_t)(void);
 void plane_main_svsm(unsigned long kernel_entry,
 			    unsigned long kernel_fdt_addr)
 {
-	int ret;
-
-	uart_puts("Hello UART\n");
+	// int ret;
 
 	/* Get realm configure */
 
-	ret = get_realm_config();
+	// ret = get_realm_config();
+	/*
 	if (ret != 0) {
 		// efi_print("[P0]\tGet realm config failed\n");
 		uart_puts("[P0]\tGet realm config failed\n");
 		for (;;);
 	}
+	*/
+	uart_puts("[P0]\tEnter linux kernel\n");
+	void (*entry)(u64, u64, u64, u64);
+	entry = (void *)kernel_entry;
+	entry(kernel_fdt_addr, 0, 0, 0);
 
 	uart_puts("[P0]\tGet realm config\n");
 
-	if (config.num_aux_planes == 0) {
+	// if (config.num_aux_planes == 0) {
 		// efi_print("[P0]\tNo aux plane, enter kernel directly\n");
 		/* No aux plane, enter kernel directly */
-		void (*entry)(u64, u64, u64, u64);
-		entry = (void *)kernel_entry;
-		entry(kernel_fdt_addr, 0, 0, 0);
-	}
+	// 	void (*entry)(u64, u64, u64, u64);
+	// 	entry = (void *)kernel_entry;
+	// 	entry(kernel_fdt_addr, 0, 0, 0);
+	// }
 	uart_puts("[P0]\tCurrent realm have pn\n");
 
 	/* Initialize the aux plane context */
-	for (int i = 1; i <= 1; i++) {
+	/*
+	for (int i = 1; i <= config.num_aux_planes; i++) {
 		aux_plane_context_init(i, kernel_entry,
 				       kernel_fdt_addr);
 	}
-	uart_puts("[P0]\tExit Plane code\n");
+	*/
+	uart_puts("[P0]\tExit plane init code\n");
 }
 
-static void context_main_once(request_fn_t request_callback)
+void context_main_loop_svsm()
 {
 	while (true) {
 		static int i = 0;
@@ -508,23 +514,35 @@ static void context_main_once(request_fn_t request_callback)
 
 		struct aux_plane_context *aux_plane;
 		aux_plane = &aux_planes[current_plane];
+		
 		if (aux_plane->state != PLANE_STATE_PENDING)
 			continue;
 
 		if (check_aux_plane_timer_pending(&aux_plane->timer)) {
 			inject_virt_timer_irq(aux_plane);
 		}
+
 		restore_aux_plane_context(aux_plane);
+		uart_puts("[P0]\tEnter aux plane\n");
+
 		if (rsi_plane_enter(current_plane, (unsigned long)&run) != 0) {
 			// efi_print("[P%d]\tEnter aux plane failed\n", current_plane);
+			uart_puts("[P0]\tEnter aux plane failed\n");
 		}
+
+		uart_puts("[P0]\tSave aux plane context\n");
 		save_aux_plane_context(aux_plane);
+
+		uart_puts("[P0]\tHandle aux plane exception\n");
 
 		if (handle_aux_plane_exception(aux_plane)) {
 			aux_plane->state = PLANE_STATE_PENDING;
 		} else {
+			uart_puts("[P0]\tUnhandled Plane exception\n");
 			aux_plane->state = PLANE_STATE_ABORT;
 			// efi_print("[P0]\tUnhandled P%d exception\n", current_plane);
+
+			// TODO: return to svsm and handle exception.
 			for (;;);
 		}
 	}

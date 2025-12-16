@@ -474,7 +474,7 @@ pub extern "C" fn svsm_main(cpu_index: usize, fdt_addr: u64) {
 
     log::info!("Enter request loop and pass device tree address");
     log::info!("Device Tree address: {:#018x}", fdt_addr);
-    request_loop_main(cpu_index, fdt_addr);
+    request_loop_main(cpu_index);
 
     log::info!("SVSM native launch completed and enter idle loop");
     platform::halt();

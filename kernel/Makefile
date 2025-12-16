@@ -4,20 +4,23 @@ TARGET = aarch64-unknown-none-softfloat
 
 QEMU_ARGS := \
 	-machine virt,gic-version=3 \
-	-machine dumpdtb=base.dtb \
-	-cpu cortex-a53 \
+	-cpu max \
+	-dtb base.dtb \
 	-nographic \
 	-smp 1 \
 	-m 1024M \
 	-kernel $(KERNEL) \
+	-device loader,file=target/build/aarch64-unknown-none-softfloat/debug/Image,addr=0x60000000 \
 	
 QEMU_ARGS_DEBUG := \
 	-machine virt,gic-version=3 \
-	-cpu cortex-a53 \
+	-cpu max \
 	-nographic \
 	-smp 1 \
 	-m 1024M \
+	-dtb base.dtb \
 	-kernel $(KERNEL) \
+	-device loader,file=target/build/aarch64-unknown-none-softfloat/debug/Image,addr=0x60000000 \
 	-S -s
 
 .PHONY: run
@@ -37,6 +40,7 @@ show:
 .PHONY: build
 build:
 	cargo build --target $(TARGET) --target-dir target/build
+	# cp target/build/aarch64-unknown-none-softfloat/debug/svsm ../../../cca-workspace/image-guest
 	
 .PHONY: tpm
 tpm:
@@ -58,4 +62,8 @@ gdb:
 .PHONY: build-release
 build-release:
 	cargo build --target aarch64-unknown-none-softfloat --release
+	
+.PHONY: plane
+plane:
+	cd ../plane && make
 	
